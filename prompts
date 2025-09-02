@@ -1,2 +1,10 @@
 ChatGPT prompts:
+- I want you to help me make a web application that compares the same item from different stores in the local area. Before we dive actually making it, I want you to help me brainstorm all the components that will be needed. Keep in mind, it will be built and deployed in a github repository. We will also need all the related documentation.
+- Go ahead and give me the repo structure. Keep in mind that this must work entirely from github as I will not have any servers or databases dedicated to this app.
+- I don't want to have to update this constantly. The goal is to get it to work automatically and keep itself up to date. Once it is set up, I should not have to touch it again.
+- Is it possible to do a mix of both? If public APIs are used when available and scrapers are used when not, it should allow the app to collect a wider range of data. Also, let's say that multiple people use the app from different locations. In order to ensure the data is available, the .json files would have to contain an absurd amount of data. Is there a better way to approach this?
+- First let's step back and review everything we have so far. Our current goal is to come up with a comprehensive plan.
+- Let's review everything one more time for any potential changes or additions. Just so you know, this app is currently only for a class project. The main objective is just to get it to work without too much overhead.
+- To be clear, the class project is to guide a generative AI to produce the app without human involvement. With this in mind, complexity isn't a concern. I want you to take whatever approach you think is most efficient given that this must be deployable from a github repository, primarily using github pages. Make sure to consider all the restraints that come with that method of deployment.
+- First, I want you to review everything one more time to make sure your design choices are feasible. Next, compile the current design into a document. Make sure to outline everything as clearly as possible. Make sure you touch on every part of the architecture in depth.
 - 
