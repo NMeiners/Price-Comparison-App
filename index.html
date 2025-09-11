@@ -1,170 +1,222 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Local Price Finder</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Local Price Finder — Local stores first</title>
 <style>
-  :root{--bg:#0f1724;--card:#0b1220;--muted:#9aa4b2;--accent:#06b6d4;--glass:rgba(255,255,255,0.03)}
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial; background:linear-gradient(180deg,#061223 0%,#081722 100%);color:#e6eef6}
-  .wrap{max-width:980px;margin:18px auto;padding:16px}
-  header{display:flex;gap:12px;align-items:center;margin-bottom:12px}
-  h1{font-size:18px;margin:0}
-  .controls{display:flex;gap:8px;flex-wrap:wrap}
-  input[type="search"]{padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);color:inherit;min-width:220px}
-  button{background:var(--accent);border:none;color:#042; padding:10px 12px;border-radius:8px;cursor:pointer;font-weight:600}
-  select{padding:9px;border-radius:8px;background:var(--glass);border:1px solid rgba(255,255,255,0.03);color:inherit}
-  .status{color:var(--muted);font-size:13px;margin-top:8px}
-  main{display:grid;grid-template-columns:1fr 420px;gap:12px}
-  @media(max-width:900px){main{grid-template-columns:1fr} .rightpane{order:2}}
-  .list{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.6)}
-  .store{padding:10px;border-radius:10px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);margin-bottom:10px;display:flex;gap:10px;align-items:flex-start}
-  .store h3{margin:0;font-size:15px}
-  .meta{font-size:13px;color:var(--muted)}
-  .actions{margin-left:auto;display:flex;flex-direction:column;gap:8px}
-  a.btnlink{display:inline-block;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.03);color:var(--accent);text-decoration:none;font-weight:600}
-  .small{font-size:12px;color:var(--muted)}
-  .rightpane{background:var(--card);padding:12px;border-radius:12px;height:640px;overflow:auto}
-  .preview{height:480px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:#07131a;display:flex;align-items:center;justify-content:center;color:var(--muted)}
-  .preview iframe{width:100%;height:100%;border:0;border-radius:8px}
-  .note{font-size:13px;color:var(--muted);margin-top:8px}
-  .tag{display:inline-block;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.02);font-size:12px;margin-right:6px}
+  :root{
+    --bg:#0f1724; --card:#08121a; --muted:#9fb0c0; --accent:#22d3ee; --glass: rgba(255,255,255,0.03);
+    --card-2:#071117; --text:#e6f2f8;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial;color:var(--text);background:linear-gradient(180deg,#07121a 0%, #04101a 100%)}
+  .container{max-width:1080px;margin:18px auto;padding:18px}
+  header{display:flex;gap:12px;align-items:center}
+  h1{font-size:20px;margin:0}
+  .sub{color:var(--muted);font-size:13px}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .field{background:var(--card);padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);display:flex;gap:8px;align-items:center}
+  input[type="search"]{background:transparent;border:0;outline:0;color:inherit;font-size:15px;width:320px}
+  .btn{background:linear-gradient(90deg,var(--accent),#60a5fa);border:0;padding:10px 12px;border-radius:10px;color:#042;font-weight:700;cursor:pointer}
+  .small{font-size:13px;color:var(--muted)}
   .row{display:flex;gap:8px;align-items:center}
-  footer{color:var(--muted);font-size:13px;margin-top:10px}
-  .loading{opacity:.9;padding:8px;border-radius:8px;background:linear-gradient(90deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));display:inline-block}
+  main{display:grid;grid-template-columns:1fr 380px;gap:14px;margin-top:14px}
+  @media(max-width:960px){main{grid-template-columns:1fr} .right{order:2}}
+  .results{background:linear-gradient(180deg,var(--card),var(--card-2));padding:12px;border-radius:12px;min-height:360px}
+  .cards{display:grid;grid-template-columns:1fr;gap:10px}
+  @media(min-width:720px){.cards{grid-template-columns:1fr 1fr}}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);display:flex;flex-direction:column;gap:8px}
+  .card h3{margin:0;font-size:16px}
+  .meta{font-size:13px;color:var(--muted)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  a.linkbtn{padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.02);color:var(--accent);text-decoration:none;font-weight:700}
+  .preview{background:var(--card);padding:12px;border-radius:12px;height:640px;overflow:auto}
+  .previewIframe{width:100%;height:480px;border-radius:8px;border:0;background:#07121a}
+  .variantGrid{display:flex;gap:8px;flex-wrap:wrap}
+  .variant{padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.02);font-size:13px;color:var(--muted)}
+  .status{margin-top:8px;color:var(--muted);font-size:13px}
+  footer{margin-top:12px;color:var(--muted);font-size:13px}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="container">
   <header>
     <div>
       <h1>Local Price Finder</h1>
-      <div class="small">Find nearby stores and compare item search results. Client-only. No API keys required.</div>
+      <div class="sub">Local stores first. No API keys. Best-effort inline parsing and search links.</div>
     </div>
-    <div style="margin-left:auto" class="row">
-      <label class="small tag" id="locLabel">location: unknown</label>
-      <select id="sortSel" title="Sort">
-        <option value="distance">Sort: distance</option>
-        <option value="name">Sort: name</option>
-        <option value="price">Sort: price available</option>
-      </select>
-    </div>
+    <div style="margin-left:auto" class="small" id="unitLabel">units: miles</div>
   </header>
 
-  <div class="controls">
-    <input id="itemInput" type="search" placeholder="Search item name e.g. 'milk 2% 1 gallon'">
-    <button id="searchBtn">Search nearby</button>
-    <button id="useLocBtn">Get my location</button>
-    <div style="margin-left:auto" class="small">Radius: <input id="radiusInput" type="number" min="200" max="5000" step="100" value="2000" style="width:100px;padding:6px;border-radius:8px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,0.04)"> meters</div>
+  <div class="controls" aria-live="polite">
+    <div class="field">
+      <input id="item" type="search" placeholder="Search item e.g. milk, eggs, iPhone 15" />
+      <button id="search" class="btn">Search nearby</button>
+      <button id="locBtn" class="btn" style="background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)">Get location</button>
+    </div>
+
+    <div class="field small">
+      <label>Radius</label>
+      <input id="radius" type="range" min="500" max="10000" step="250" value="2000" style="width:180px">
+      <span id="radiusLabel">2.0 km</span>
+    </div>
+
+    <div class="field small">
+      <label>Distance units</label>
+      <select id="units">
+        <option value="auto">Auto</option>
+        <option value="km">Kilometers</option>
+        <option value="mi">Miles</option>
+      </select>
+    </div>
+
+    <div class="field small" style="margin-left:auto">
+      <label>Sort</label>
+      <select id="sort">
+        <option value="distance">Distance</option>
+        <option value="name">Store name</option>
+        <option value="price">Has parsed price first</option>
+      </select>
+    </div>
   </div>
 
   <div class="status" id="status">Ready.</div>
 
   <main>
-    <section class="list" id="resultsCol">
-      <div id="storesList"><div class="small">No results yet. Enter an item and click "Search nearby".</div></div>
-      <footer id="footerNote" class="note">This app queries OpenStreetMap's Overpass API for nearby shops and generates retailer search links. It will try to fetch and parse search pages but many sites block cross-origin requests and framing. Links always open in a new tab.</footer>
+    <section class="results" aria-label="results">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="small">Nearby stores (physical) matching your search and item variants</div>
+        <div class="small" id="lastQuery"></div>
+      </div>
+
+      <div style="margin-top:12px" id="variantArea" class="small"></div>
+
+      <div style="margin-top:10px" id="results" class="cards">
+        <div class="small">No results yet. Allow location and click Search.</div>
+      </div>
+      <footer class="small" style="margin-top:10px">
+        Uses OpenStreetMap (Overpass) to locate stores. Attempts to fetch and parse retailer search pages for price snippets. Many major sites block cross-origin fetches and framing. When blocked the app provides direct search links you can open in a new tab.
+      </footer>
     </section>
 
-    <aside class="rightpane">
-      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div class="small">Preview / inline attempt</div>
-        <div><button id="toggleIframe" class="small" style="padding:6px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03)">Toggle iframe</button></div>
+    <aside class="preview" id="preview">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="small">Preview / inline parsing</div>
+        <div class="row">
+          <button id="toggleIframe" class="btn" style="padding:6px 8px;background:transparent;border:1px solid rgba(255,255,255,0.04)">Toggle preview</button>
+        </div>
       </div>
-      <div class="preview" id="previewPane">
-        <div class="small">Select a retailer link to preview. If blocked the app will show an error here.</div>
-      </div>
-      <div style="margin-top:10px">
-        <div class="small">Last search</div>
-        <div id="lastSearch" class="small"></div>
-      </div>
+      <div id="previewInner" style="font-size:13px;color:var(--muted)">Select a retailer link to preview inside this pane. If blocked the link will open in new tab.</div>
     </aside>
   </main>
 </div>
 
 <script>
-/* Single-file client-only app
-   - Uses navigator.geolocation
-   - Queries Overpass API to find nearby nodes/ways with shop tags
-   - Builds retailer search links per store
-   - Attempts CORS fetch of search pages to parse JSON-LD or price-like patterns
-   - Provides sorting and simple inline iframe preview
-   Notes: external sites often block CORS and framing. This app handles failures gracefully.
+/* Single-file client app
+   - Overpass for nearby shops: nodes/ways/relations with shop or amenity=supermarket
+   - Variant expansion for common categories (milk, eggs, bread, soda, water, coffee)
+   - Best-effort fetch+parse of Google Shopping and Bing Shopping search pages.
+   - Graceful fallbacks: open in new tab when CORS or X-Frame-Options block.
 */
 
-const statusEl = document.getElementById('status');
-const locLabel = document.getElementById('locLabel');
-const itemInput = document.getElementById('itemInput');
-const searchBtn = document.getElementById('searchBtn');
-const useLocBtn = document.getElementById('useLocBtn');
-const storesList = document.getElementById('storesList');
-const radiusInput = document.getElementById('radiusInput');
-const previewPane = document.getElementById('previewPane');
-const toggleIframeBtn = document.getElementById('toggleIframe');
-const sortSel = document.getElementById('sortSel');
-const lastSearch = document.getElementById('lastSearch');
+const status = id('status');
+const itemInput = id('item');
+const searchBtn = id('search');
+const locBtn = id('locBtn');
+const radiusEl = id('radius');
+const radiusLabel = id('radiusLabel');
+const resultsEl = id('results');
+const previewInner = id('previewInner');
+const toggleIframe = id('toggleIframe');
+const unitsSel = id('units');
+const unitLabel = id('unitLabel');
+const sortSel = id('sort');
+const variantArea = id('variantArea');
+const lastQueryLabel = id('lastQuery');
 
 let userPos = null;
-let lastResults = [];
+let results = [];
 let iframeEnabled = false;
 let lastQuery = '';
+let unit = 'mi'; // mi or km by display
 
-function setStatus(s){ statusEl.textContent = s; }
+// small utilities
+function id(x){return document.getElementById(x)}
+function setStatus(s){ status.textContent = s }
+function setHTML(el, s){ el.innerHTML = s }
 
-async function getLocation() {
-  if (!navigator.geolocation) {
-    setStatus('Geolocation not available in this browser.');
-    return null;
-  }
-  setStatus('Requesting location permission...');
-  return new Promise((res,rej)=>{
-    navigator.geolocation.getCurrentPosition(pos=>{
-      userPos = {lat: pos.coords.latitude, lon: pos.coords.longitude};
-      locLabel.textContent = `location: ${userPos.lat.toFixed(4)},${userPos.lon.toFixed(4)}`;
-      setStatus('Location acquired.');
-      res(userPos);
-    },err=>{
-      setStatus('Location denied or unavailable.');
-      rej(err);
-    }, {enableHighAccuracy:true, timeout:10000});
-  });
+function detectDefaultUnit(){
+  const lang = navigator.language || navigator.userLanguage || 'en-US';
+  if(unitsSel.value === 'auto'){
+    unit = (/us|en-US/i).test(lang) ? 'mi' : 'km';
+  } else unit = unitsSel.value;
+  unitLabel.textContent = 'units: ' + (unit === 'mi' ? 'miles' : 'km');
+}
+
+unitsSel.addEventListener('change', ()=>{ detectDefaultUnit(); renderAll() });
+
+radiusEl.addEventListener('input', ()=> {
+  const val = Number(radiusEl.value);
+  radiusLabel.textContent = formatDistance(val);
+});
+
+function formatDistance(meters){
+  if(unit === 'mi') return (meters/1609.344).toFixed(1) + ' mi';
+  return (meters/1000).toFixed(2) + ' km';
 }
 
 function haversine(a,b){
-  const R=6371000;
-  const toRad = x=>x*Math.PI/180;
-  const dLat=toRad(b.lat-a.lat), dLon=toRad(b.lon-a.lon);
-  const la=toRad(a.lat), lb=toRad(b.lat);
-  const s=Math.sin(dLat/2)**2 + Math.cos(la)*Math.cos(lb)*Math.sin(dLon/2)**2;
+  const R=6371000; const r= Math.PI/180;
+  const dLat = (b.lat-a.lat)*r, dLon=(b.lon-a.lon)*r;
+  const la=a.lat*r, lb=b.lat*r;
+  const s = Math.sin(dLat/2)**2 + Math.cos(la)*Math.cos(lb)*Math.sin(dLon/2)**2;
   return R*2*Math.asin(Math.sqrt(s));
 }
 
-async function findNearbyShops(lat, lon, radius=2000) {
-  setStatus('Querying Overpass for nearby shops...');
-  // Overpass QL: node(around:radius,lat,lon)[shop]; way(around:...)[shop]; relation(around:...)[shop];
-  const query = `[out:json][timeout:15];
+async function getLocation(){
+  if(!navigator.geolocation) { setStatus('Geolocation unavailable'); return null }
+  setStatus('Requesting location...');
+  return new Promise((res,rej)=>{
+    navigator.geolocation.getCurrentPosition(p=>{
+      userPos = {lat: p.coords.latitude, lon: p.coords.longitude};
+      setStatus('Location set: ' + userPos.lat.toFixed(4) + ',' + userPos.lon.toFixed(4));
+      res(userPos);
+    }, err=>{
+      setStatus('Location denied or error');
+      rej(err);
+    }, {enableHighAccuracy:true, timeout:12000});
+  });
+}
+
+// Overpass query: look for shops + supermarkets/convenience within radius
+async function overpassSearch(lat, lon, radius){
+  setStatus('Querying Overpass for shops...');
+  const q = `[out:json][timeout:20];
   (
     node(around:${radius},${lat},${lon})[shop];
     way(around:${radius},${lat},${lon})[shop];
     relation(around:${radius},${lat},${lon})[shop];
+    node(around:${radius},${lat},${lon})[amenity=supermarket];
+    way(around:${radius},${lat},${lon})[amenity=supermarket];
+    relation(around:${radius},${lat},${lon})[amenity=supermarket];
   );
   out center tags;`;
-  const url = 'https://overpass-api.de/api/interpreter';
   try {
-    const resp = await fetch(url, {method:'POST',body:query});
-    if(!resp.ok) throw new Error('Overpass responded '+resp.status);
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:q});
+    if(!resp.ok) throw new Error('Overpass '+resp.status);
     const data = await resp.json();
     const items = data.elements.map(e=>{
-      const center = e.type==='node' ? {lat:e.lat, lon:e.lon} : (e.center || {lat:e.lat, lon:e.lon});
+      const center = (e.type==='node') ? {lat:e.lat, lon:e.lon} : (e.center || {lat:e.lat, lon:e.lon});
       return {
         id: e.id,
-        name: (e.tags && (e.tags.name || e.tags['brand'])) || 'Unknown',
-        tags: e.tags||{},
+        type: e.type,
+        name: (e.tags && (e.tags.name || e.tags.brand)) || (e.tags && e.tags.shop) || 'Unknown',
+        tags: e.tags || {},
         lat: center.lat,
         lon: center.lon
       };
     });
-    setStatus(`Found ${items.length} shops (raw).`);
+    setStatus(`Overpass returned ${items.length} items.`);
     return items;
   } catch(err){
     setStatus('Overpass error: '+err.message);
@@ -172,212 +224,262 @@ async function findNearbyShops(lat, lon, radius=2000) {
   }
 }
 
-function retailerSearchLinks(itemQuery, store){
-  const q = encodeURIComponent(itemQuery + ' ' + (store.name || ''));
-  const links = [
-    {label:'Google Shopping', url:`https://www.google.com/search?q=${q}&tbm=shop`},
-    {label:'Amazon', url:`https://www.amazon.com/s?k=${encodeURIComponent(itemQuery)}`},
-    {label:'Walmart', url:`https://www.walmart.com/search/?query=${encodeURIComponent(itemQuery)}`},
-    {label:'Target', url:`https://www.target.com/s?searchTerm=${encodeURIComponent(itemQuery)}`},
-    {label:'Bing Shopping', url:`https://www.bing.com/shop?q=${q}`},
-    // If the OSM node has a website tag try direct site search
-  ];
-  if (store.tags && store.tags.website){
-    const site = store.tags.website.replace(/\/$/,'');
-    // common pattern: site/search?q=...
-    const siteSearch = `${site}/search?q=${encodeURIComponent(itemQuery)}`;
-    links.unshift({label:'Store site', url:siteSearch});
+// Simple variant expansion for vague searches
+function expandVariants(query){
+  const q = query.toLowerCase().trim();
+  const variants = new Set();
+  variants.add(query);
+  // category heuristics
+  const milkWords = ['milk','2%','whole','skim','1%','lowfat','lactose-free','gallon','quart'];
+  const eggWords = ['egg','eggs','dozen','large','medium','brown'];
+  const breadWords = ['bread','loaf','whole wheat','white','sourdough','baguette'];
+  const sodaWords = ['soda','cola','pepsi','coke','12 pack','can','bottle'];
+  const waterWords = ['water','bottle','spring water','1L','500ml'];
+  const coffeeWords = ['coffee','ground coffee','k-cup','beans','instant'];
+  function addList(list){
+    list.forEach(w=>variants.add(w));
   }
-  return links;
+  if(q.includes('milk')) addList(['whole milk','2% milk','1% milk','skim milk','milk gallon','lactose-free milk']);
+  if(q.includes('egg') || q==='eggs') addList(['eggs dozen','large eggs','brown eggs']);
+  if(q.includes('bread')) addList(['whole wheat bread','white bread','baguette','sourdough loaf']);
+  if(q.includes('water')) addList(['bottled water','spring water 1L','filtered water']);
+  if(q.includes('coffee')) addList(['ground coffee 12oz','coffee beans','k-cups']);
+  // general fallback: add common pack sizes
+  variants.add(q + ' 1 lb');
+  variants.add(q + ' 1 each');
+  variants.add(q + ' pack');
+  // return array, prefer specific variants first
+  return Array.from(variants).slice(0,12);
 }
 
-async function tryFetchAndParse(url){
-  // Best-effort fetch. Many sites will reject. Return parse result or error.
+// Build retailer search links for a local-store context.
+// We still create links to Google Shopping and Bing Shopping for variant discovery.
+function buildRetailLinks(q, store){
+  const qEncoded = encodeURIComponent(q + ' ' + (store.name || ''));
+  return [
+    {label:'Google Shopping', url:`https://www.google.com/search?q=${qEncoded}&tbm=shop`},
+    {label:'Bing Shopping', url:`https://www.bing.com/shop?q=${qEncoded}`},
+    {label:'Walmart', url:`https://www.walmart.com/search/?query=${encodeURIComponent(q)}`},
+    {label:'Target', url:`https://www.target.com/s?searchTerm=${encodeURIComponent(q)}`},
+    {label:'Store search', url: store.tags && store.tags.website ? `${store.tags.website.replace(/\/$/,'')}/search?q=${encodeURIComponent(q)}` : null}
+  ].filter(x=>x.url);
+}
+
+// Best-effort fetch + parse of a search page. Will fail if blocked.
+// We attempt to extract JSON-LD product offers or $price patterns.
+async function fetchAndParse(url){
   try {
     const resp = await fetch(url, {mode:'cors'});
     const text = await resp.text();
-    // Look for JSON-LD script with product info
-    const jsonld = text.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
-    if(jsonld){
+    // find JSON-LD blocks
+    const ld = [...text.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/ig)];
+    for(const m of ld){
       try {
-        const j = JSON.parse(jsonld[1].trim());
-        // j may be an object or array. find offers.price or price
-        const prod = Array.isArray(j) ? j.find(x=>x['@type'] && /Product/i.test(x['@type'])) : j;
-        const price = (prod && prod.offers && (prod.offers.price || prod.offers[0] && prod.offers[0].price)) || prod && prod.price;
-        const name = prod && (prod.name || prod.headline) || null;
-        return {ok:true, name, price, raw:text.slice(0,5000)};
+        const j = JSON.parse(m[1]);
+        const arr = Array.isArray(j) ? j : [j];
+        for(const obj of arr){
+          if(obj && (obj['@type']=='Product' || obj['@type'] && /Product/i.test(obj['@type']))){
+            const name = obj.name || obj.headline || null;
+            const offers = obj.offers;
+            if(offers){
+              const price = (Array.isArray(offers) ? offers[0] : offers).price;
+              if(price) return {ok:true, name, price};
+            }
+          }
+        }
       } catch(e){}
     }
-    // fallback: search for price-like patterns e.g. $12.34
-    const m = text.match(/(\$|USD\s*)(\d{1,4}(?:[.,]\d{2})?)/);
-    if(m) return {ok:true, price:m[0], raw:text.slice(0,5000)};
-    return {ok:false, error:'no price parsed', raw:text.slice(0,2000)};
+    // fallback: price regex
+    const m = text.match(/(\$|USD\s?)(\d{1,4}(?:[.,]\d{2})?)/);
+    if(m) return {ok:true, price: m[0]};
+    return {ok:false, error:'no price parsed'};
   } catch(err){
-    return {ok:false, error:err.message};
+    return {ok:false, error: err.message};
   }
 }
 
-function clearResults(){ storesList.innerHTML=''; lastResults = []; }
-
-function renderStores(results){
-  clearResults();
-  if(!results.length){ storesList.innerHTML='<div class="small">No shops found in radius.</div>'; return; }
-  results.forEach((s, idx)=>{
-    const div = document.createElement('div');
-    div.className='store';
-    const left = document.createElement('div');
-    left.style.flex='1';
-    const h = document.createElement('h3');
-    h.textContent = s.name || 'Unknown';
-    left.appendChild(h);
-    const meta = document.createElement('div');
-    meta.className='meta';
-    meta.innerHTML = `${s.tags['addr:street']||''} ${s.tags['addr:housenumber']||''}<br>Distance: ${(s.distance/1).toFixed(0)} m`;
-    left.appendChild(meta);
-
-    // show parsed price if any
-    if (s.parsed && s.parsed.price){
-      const p = document.createElement('div');
-      p.className='small';
-      p.style.marginTop='6px';
-      p.innerHTML = `<strong>Parsed:</strong> ${s.parsed.price} ${s.parsed.name?(' — '+s.parsed.name):''}`;
-      left.appendChild(p);
-    }
-
-    const actions = document.createElement('div');
-    actions.className='actions';
-    // build retailer links
-    const itemQ = lastQuery;
-    const links = retailerSearchLinks(itemQ, s);
-    links.forEach(l=>{
-      const a = document.createElement('a');
-      a.href = l.url;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      a.className = 'btnlink';
-      a.textContent = l.label;
-      a.title = l.url;
-      a.onclick = (ev)=>{
-        // show preview attempt
-        ev.preventDefault();
-        openPreview(l.url, l.label);
-      };
-      actions.appendChild(a);
-    });
-
-    // small quick open to maps
-    const mapBtn = document.createElement('a');
-    mapBtn.className='btnlink';
-    mapBtn.textContent='Map';
-    mapBtn.href=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.lat+','+s.lon)}`;
-    mapBtn.target='_blank';
-    mapBtn.rel='noopener';
-    actions.appendChild(mapBtn);
-
-    div.appendChild(left);
-    div.appendChild(actions);
-    storesList.appendChild(div);
-  });
-}
-
-async function searchWorkflow(){
-  const q = (itemInput.value || '').trim();
-  if(!q){ setStatus('Enter an item to search.'); return; }
-  lastQuery = q;
-  lastSearch.textContent = `${q} @ ${new Date().toLocaleString()}`;
-  if(!userPos){
-    try { await getLocation(); } catch(e){ setStatus('Location required to search.'); return; }
-  }
-  const radius = parseInt(radiusInput.value || '2000',10);
-  setStatus('Searching nearby shops...');
-  const shops = await findNearbyShops(userPos.lat, userPos.lon, radius);
-  // compute distance
-  for(const s of shops){
-    s.distance = Math.round(haversine(userPos, {lat:s.lat, lon:s.lon}));
-  }
-  // sort by distance by default
-  shops.sort((a,b)=>a.distance-b.distance);
-  lastResults = shops.slice(0,60); // limit
-  renderStores(lastResults);
-  setStatus(`Showing ${lastResults.length} stores. Attempting to parse a few pages for prices (best-effort).`);
-  // Attempt to fetch and parse first 6 store site searches only to avoid hammering
-  const toTry = lastResults.slice(0,6);
-  for(const s of toTry){
-    if (s.tags && s.tags.website){
-      const candidate = s.tags.website.replace(/\/$/,'') + '/search?q=' + encodeURIComponent(q);
-      setStatus(`Trying to parse ${s.name} site...`);
-      const parsed = await tryFetchAndParse(candidate);
-      if(parsed && parsed.ok){
-        s.parsed = parsed;
-      } else {
-        // try a generic retailer link fallback (Walmart)
-        const fallback = `https://www.walmart.com/search/?query=${encodeURIComponent(q)}`;
-        const parsed2 = await tryFetchAndParse(fallback).catch(()=>({ok:false}));
-        if(parsed2.ok) s.parsed = parsed2;
-      }
-    } else {
-      // try searching Walmart/Amazon for parse attempt
-      const fallback = `https://www.walmart.com/search/?query=${encodeURIComponent(q)}`;
-      const parsed = await tryFetchAndParse(fallback).catch(()=>({ok:false}));
-      if(parsed.ok) s.parsed = parsed;
-    }
-  }
-  // re-render to show parsed results
-  renderStores(lastResults);
-  setStatus('Search complete. Click a retailer to preview or open in new tab.');
-}
-
-function openPreview(url, label){
-  // show either iframe or "blocked" message
+function openPreview(url){
   if(!iframeEnabled){
     window.open(url, '_blank', 'noopener');
     return;
   }
-  previewPane.innerHTML = '';
+  previewInner.innerHTML = '';
+  // attempt iframe; many sites block X-Frame-Options
   const iframe = document.createElement('iframe');
+  iframe.className = 'previewIframe';
   iframe.src = url;
-  iframe.onload = ()=>{ /* may still be blocked by X-Frame-Options; onerror not reliable */ };
-  iframe.onerror = ()=>{
-    previewPane.innerHTML = '<div class="small">Preview blocked by the remote site. It will open in a new tab instead.</div>';
-    window.open(url,'_blank','noopener');
-  };
-  previewPane.appendChild(iframe);
+  iframe.onload = ()=>{ /* loaded */ };
+  iframe.onerror = ()=>{ previewInner.innerHTML = '<div class="small">Preview blocked. Opening in new tab.</div>'; window.open(url,'_blank','noopener'); };
+  previewInner.appendChild(iframe);
 }
 
-toggleIframeBtn.onclick = ()=>{
-  iframeEnabled = !iframeEnabled;
-  toggleIframeBtn.textContent = iframeEnabled ? 'Iframe: on' : 'Toggle iframe';
-  previewPane.innerHTML = `<div class="small">${iframeEnabled ? 'Iframe enabled. Click links to preview (may be blocked).' : 'Iframe disabled. Click links open new tabs.'}</div>`;
-};
-
-searchBtn.onclick = ()=>searchWorkflow();
-useLocBtn.onclick = ()=>getLocation().catch(()=>{});
-sortSel.onchange = ()=>{
-  const v = sortSel.value;
-  if(!lastResults.length) return;
-  if(v==='distance') lastResults.sort((a,b)=>a.distance-b.distance);
-  else if(v==='name') lastResults.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  else if(v==='price') lastResults.sort((a,b)=> {
-    const pa=a.parsed && a.parsed.price ? 0:1;
-    const pb=b.parsed && b.parsed.price ? 0:1;
-    return pa-pb || a.distance-b.distance;
+// Render results with improved UI
+function renderAll(){
+  detectDefaultUnit();
+  resultsEl.innerHTML = '';
+  if(!results || results.length===0){ resultsEl.innerHTML = '<div class="small">No stores found. Try expanding radius or allowing location.</div>'; return; }
+  // sort
+  const s = sortSel.value;
+  if(s==='distance') results.sort((a,b)=>a.distance-b.distance);
+  else if(s==='name') results.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  else if(s==='price') results.sort((a,b)=> {
+    const pa = a.parsed && a.parsed.price ? 0:1; const pb = b.parsed && b.parsed.price ? 0:1;
+    return pa-pb || a.distance - b.distance;
   });
-  renderStores(lastResults);
-};
+  for(const store of results){
+    const card = document.createElement('div'); card.className='card';
+    const title = document.createElement('h3'); title.textContent = store.name || 'Unknown';
+    card.appendChild(title);
+    const meta = document.createElement('div'); meta.className='meta';
+    meta.innerHTML = `${store.tags['addr:street']||''} ${store.tags['addr:housenumber']||''} • ${formatDistance(store.distance)}`;
+    card.appendChild(meta);
+    if(store.parsed && store.parsed.price){
+      const p = document.createElement('div'); p.className='small';
+      p.innerHTML = `<strong>Parsed:</strong> ${store.parsed.price} ${store.parsed.name?(' — '+escapeHtml(store.parsed.name)):''}`;
+      card.appendChild(p);
+    }
+    const actions = document.createElement('div'); actions.className='actions';
+    const links = buildRetailLinks(currentVariant || lastQuery, store);
+    links.forEach(l=>{
+      const a = document.createElement('a'); a.className='linkbtn'; a.textContent = l.label; a.href = l.url; a.target='_blank'; a.rel='noopener';
+      a.onclick = (ev)=>{ ev.preventDefault(); openPreview(l.url); };
+      actions.appendChild(a);
+    });
+    // map button
+    const map = document.createElement('a'); map.className='linkbtn'; map.textContent='Map'; map.href=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.lat + ',' + store.lon)}`; map.target='_blank'; map.rel='noopener';
+    actions.appendChild(map);
+    card.appendChild(actions);
+    resultsEl.appendChild(card);
+  }
+}
 
-// restore previous item from localStorage
-try {
-  const prev = localStorage.getItem('lastItem');
-  if(prev) itemInput.value = prev;
-} catch(e){}
+// escape small
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-window.addEventListener('beforeunload', ()=>{
-  try { localStorage.setItem('lastItem', itemInput.value || ''); } catch(e){}
-});
+let currentVariant = null;
 
-// Accessibility small: allow Enter on input to search
-itemInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') searchWorkflow(); });
+// main search workflow
+async function searchWorkflow(){
+  const q = (itemInput.value || '').trim();
+  if(!q){ setStatus('Enter an item to search'); return; }
+  lastQuery = q;
+  lastQueryLabel.textContent = `${q} • ${new Date().toLocaleString()}`;
+  // expand variants
+  const variants = expandVariants(q);
+  renderVariants(variants);
+  // pick top variant as initial search term
+  currentVariant = variants[0] || q;
+  // ensure location
+  if(!userPos){
+    try { await getLocation(); } catch(e){ setStatus('Location required'); return; }
+  }
+  const radiusM = Number(radiusEl.value || 2000);
+  setStatus('Finding nearby stores...');
+  const shops = await overpassSearch(userPos.lat, userPos.lon, radiusM);
+  // compute distances
+  for(const s of shops) s.distance = Math.round(haversine(userPos, {lat:s.lat, lon:s.lon}));
+  results = shops.slice(0,80);
+  renderAll();
+  setStatus('Attempting to parse a few retailer/search pages for price snippets (best-effort).');
+  // try parsing top results: try store website if exists, else try Google/Bing shopping endpoints
+  const attempts = results.slice(0,8);
+  for(const st of attempts){
+    let parsed = null;
+    if(st.tags && st.tags.website){
+      try {
+        const candidate = st.tags.website.replace(/\/$/,'') + '/search?q=' + encodeURIComponent(currentVariant);
+        parsed = await fetchAndParse(candidate);
+      } catch(e){}
+    }
+    if(!parsed || !parsed.ok){
+      // try Google Shopping and Bing Shopping for variant snippets
+      try {
+        const g = `https://www.google.com/search?q=${encodeURIComponent(currentVariant + ' ' + st.name)}&tbm=shop`;
+        parsed = await fetchAndParse(g);
+      } catch(e){}
+    }
+    if(!parsed || !parsed.ok){
+      const b = `https://www.bing.com/shop?q=${encodeURIComponent(currentVariant + ' ' + st.name)}`;
+      try { parsed = await fetchAndParse(b); } catch(e){}
+    }
+    if(parsed && parsed.ok){
+      st.parsed = parsed;
+      renderAll();
+    }
+    // small delay to be polite
+    await delay(300);
+  }
+  setStatus('Search complete. Click links to preview or open in new tab.');
+}
 
+// show variant buttons
+function renderVariants(list){
+  variantArea.innerHTML = '';
+  const row = document.createElement('div'); row.className='variantGrid';
+  list.forEach(v=>{
+    const b = document.createElement('div'); b.className='variant'; b.textContent = v;
+    b.onclick = ()=>{
+      currentVariant = v;
+      setStatus('Selected variant: ' + v + '. Re-parsing top stores (best-effort)...');
+      // re-run parsing attempts for top stores
+      rerunParses();
+    };
+    row.appendChild(b);
+  });
+  variantArea.appendChild(row);
+}
+
+async function rerunParses(){
+  if(!results || results.length===0) return;
+  const attempts = results.slice(0,8);
+  for(const st of attempts){
+    let parsed = null;
+    if(st.tags && st.tags.website){
+      try {
+        const candidate = st.tags.website.replace(/\/$/,'') + '/search?q=' + encodeURIComponent(currentVariant);
+        parsed = await fetchAndParse(candidate);
+      } catch(e){}
+    }
+    if(!parsed || !parsed.ok){
+      try {
+        const g = `https://www.google.com/search?q=${encodeURIComponent(currentVariant + ' ' + st.name)}&tbm=shop`;
+        parsed = await fetchAndParse(g);
+      } catch(e){}
+    }
+    if(!parsed || !parsed.ok){
+      const b = `https://www.bing.com/shop?q=${encodeURIComponent(currentVariant + ' ' + st.name)}`;
+      try { parsed = await fetchAndParse(b); } catch(e){}
+    }
+    if(parsed && parsed.ok){
+      st.parsed = parsed;
+      renderAll();
+    }
+    await delay(300);
+  }
+  setStatus('Variant parsing attempts complete.');
+}
+
+function delay(ms){ return new Promise(res=>setTimeout(res, ms)); }
+
+searchBtn.addEventListener('click', ()=>{ localStorage.setItem('lastItem', itemInput.value || ''); searchWorkflow(); });
+locBtn.addEventListener('click', ()=> getLocation().catch(()=>{}));
+toggleIframe.addEventListener('click', ()=>{ iframeEnabled = !iframeEnabled; toggleIframe.textContent = iframeEnabled ? 'Preview: on' : 'Toggle preview'; previewInner.innerHTML = iframeEnabled ? '<div class="small">Iframe enabled. Click a link to preview.</div>' : '<div class="small">Iframe disabled. Click links open in new tab.</div>' });
+
+sortSel.addEventListener('change', renderAll);
+
+// restore previous
+try { const prev = localStorage.getItem('lastItem'); if(prev) itemInput.value = prev } catch(e){}
+
+async function init(){
+  detectDefaultUnit();
+  radiusLabel.textContent = formatDistance(Number(radiusEl.value));
+  setStatus('Ready. Allow location and click Search.');
+  // attempt auto-location but do not force
+  // try to get quick position silently
+  try { await getLocation(); } catch(e){}
+}
+
+init();
 </script>
 </body>
 </html>
