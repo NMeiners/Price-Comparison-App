@@ -6,4 +6,6 @@ ChatGPT prompts:
 - Let's focus on getting it working properly and improving the UI for now. Currently it does not come up with any results. The user may input non-specific searches, so it will need a way to find related items. For example, the user might search for "milk" and the app will need to return results for 2% and whole milk. Also, meters is not a very user-friendly measurement. Let's have it use kilometers or miles. If you can improve the appearance to make it easier to view, please do so.
 - The goal of the app is to shop via local physical stores, so online shopping is out of scope for now. If you can implement google shopping and bing shopping search parsing to improve search results, please do so. Do what you feel works best to improve search results.
 - Do what you feel works best given the purpose of the app. If you can find a way to get the best of both worlds, even better.
-- 
+- Can we try adding in the actual map when displaying the results? I think it should have the results listed in a bar while also showing the results at pins on store locations on a map. Also, could you clean up some of the displayed text to make it more professional or "human" by cutting out unnecessary text?
+- Do what you think would be more user-friendly and better organized. Go ahead and make the changes to the code.
+- Yes. While you are making that change, please make any updates you think are necessary to improve user experience.
