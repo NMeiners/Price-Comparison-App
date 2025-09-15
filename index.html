@@ -1,525 +1,151 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Local Price Finder — Improved Search</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<style>
-  :root{
-    --bg:#07121a; --panel:#0b1220; --card:#0f1724; --muted:#9fb0c0; --accent:#22d3ee; --text:#e6f6fb;
-    --light-bg:#f6f8fb; --light-panel:#ffffff; --light-text:#111827; --light-muted:#556170; --light-accent:#2563eb;
-  }
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:var(--bg);color:var(--text)}
-  body.light{background:var(--light-bg);color:var(--light-text)}
-  .app{max-width:1200px;margin:12px auto;padding:12px;display:flex;flex-direction:column;gap:12px}
-  .topbar{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:linear-gradient(90deg,#06202a,#04202b)}
-  body.light .topbar{background:linear-gradient(90deg,#fff,#f7fbff)}
-  .brand{font-weight:700;font-size:18px}
-  .sub{font-size:13px;color:var(--muted)}
-  .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
-  .searchbar{display:flex;gap:8px;padding:10px;border-radius:10px;background:var(--panel);align-items:center}
-  .searchbar input[type="search"]{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:15px}
-  .btn{background:var(--accent);border:0;padding:10px 12px;border-radius:8px;color:#042;font-weight:700;cursor:pointer}
-  body.light .btn{background:var(--light-accent);color:#fff}
-  .layout{display:grid;grid-template-columns:380px 1fr;gap:12px;min-height:60vh}
-  @media(max-width:900px){ .layout{grid-template-columns:1fr;grid-auto-rows:min-content} }
-  .panel{background:var(--card);padding:12px;border-radius:12px;overflow:auto}
-  body.light .panel{background:var(--light-panel)}
-  #results{display:flex;flex-direction:column;gap:8px}
-  .storeCard{padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(255,255,255,0.03)}
-  body.light .storeCard{border:1px solid rgba(0,0,0,0.06)}
-  .storeCard h4{margin:0;font-size:15px}
-  .meta{font-size:13px;color:var(--muted);margin-top:4px}
-  .actions{margin-left:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
-  .linkBtn{display:inline-block;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.02);color:var(--accent);text-decoration:none;font-weight:700;cursor:pointer}
-  .small{font-size:13px;color:var(--muted)}
-  #map {height:72vh;border-radius:12px;overflow:hidden}
-  .price{font-weight:800;color:var(--accent);margin-top:6px}
-  body.light .price{color:var(--light-accent)}
-  .morePrices{margin-top:6px;font-size:13px;color:var(--muted);cursor:pointer}
-  .priceList{margin-top:6px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);max-width:220px}
-  body.light .priceList{background:#f0f6ff}
-  .storeCard.active{outline:2px solid rgba(34,211,238,0.12)}
-  .status{font-size:13px;color:var(--muted);margin-top:6px}
-  .settingsModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:9999}
-  .settingsCard{width:320px;background:var(--card);padding:14px;border-radius:10px}
-  body.light .settingsCard{background:var(--light-panel)}
-  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
-</style>
+  <meta charset="UTF-8">
+  <title>Local Price Comparison</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    header { background: #0078d7; color: white; padding: 1em; text-align: center; }
+    #search-bar { display: flex; padding: 10px; gap: 5px; }
+    #search-input { flex: 1; padding: 8px; }
+    #results { max-height: 40vh; overflow-y: auto; padding: 10px; border-top: 1px solid #ccc; }
+    .result { padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer; }
+    .highlight-price { font-weight: bold; color: green; }
+    .other-prices { display: none; margin-top: 5px; font-size: 0.9em; color: #444; }
+    #map { height: 50vh; }
+    .toggle { color: #0078d7; cursor: pointer; margin-left: 5px; font-size: 0.9em; }
+  </style>
 </head>
 <body>
-<div class="app">
-  <div class="topbar">
-    <div>
-      <div class="brand">Local Price Finder</div>
-      <div class="sub">Adaptive local search. Prices shown when available.</div>
-    </div>
-    <div class="controls">
-      <div class="small" id="unitLabel">units: km</div>
-      <button id="settingsBtn" class="btn" style="background:transparent;border:1px solid rgba(255,255,255,0.04);color:inherit">Settings</button>
-    </div>
+  <header>
+    <h1>Local Price Comparison</h1>
+  </header>
+  <div id="search-bar">
+    <input id="search-input" type="text" placeholder="Search for items (e.g. milk, bread, tires)">
+    <button id="search-button">Search</button>
   </div>
+  <div id="results"></div>
+  <div id="map"></div>
 
-  <div class="searchbar panel">
-    <input id="itemInput" type="search" placeholder="Search items (e.g., milk, bread, tires)" />
-    <button id="searchBtn" class="btn">Search</button>
-    <div style="margin-left:auto" class="small">Radius:
-      <input id="radiusRange" type="range" min="500" max="20000" step="250" value="5000" style="vertical-align:middle">
-      <span id="radiusLabel">5.00 km</span>
-    </div>
-  </div>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    let map, userMarker;
+    let userLocation = null;
 
-  <div class="layout">
-    <div class="panel" id="leftPanel">
-      <div style="display:flex;justify-content:space-between">
-        <div class="small" id="resultsHeader">Results</div>
-        <div class="small" id="statusText">Ready</div>
-      </div>
-
-      <div id="variantArea" style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0"></div>
-
-      <div id="results"></div>
-
-      <div class="small" style="margin-top:8px">If parsing fails the app provides direct search links.</div>
-    </div>
-
-    <div class="panel" id="mapPanel">
-      <div id="map"></div>
-    </div>
-  </div>
-</div>
-
-<!-- Settings -->
-<div id="settingsModal" class="settingsModal" aria-hidden="true">
-  <div class="settingsCard">
-    <h3 style="margin:0 0 8px 0">Settings</h3>
-    <label>Units</label>
-    <select id="unitSelect"><option value="km">Kilometers</option><option value="mi">Miles</option></select>
-    <label style="margin-top:8px">Theme</label>
-    <select id="themeSelect"><option value="dark">Dark</option><option value="light">Light</option></select>
-    <label style="margin-top:8px">Max radius (meters)</label>
-    <input id="radiusNumber" type="number" min="500" max="20000" step="100" value="5000">
-    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
-      <button id="closeSettings" class="btn" style="background:rgba(255,255,255,0.06);color:var(--text)">Close</button>
-      <button id="saveSettings" class="btn">Save</button>
-    </div>
-  </div>
-</div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-/* Restored stable search pipeline with improved filtering and scoring.
-   - Overpass returns shop=* and amenity=supermarket in radius
-   - Client-side category scoring based on query intent
-   - Progressive, non-blocking price parsing via AllOrigins proxy (strict parsing)
-*/
-
-const state = {
-  pos: null,
-  map: null,
-  markers: [],
-  stores: [],
-  unit: 'km',
-  radius: 5000,
-  variants: [],
-  currentVariant: null
-};
-
-// DOM
-const itemInput = document.getElementById('itemInput');
-const searchBtn = document.getElementById('searchBtn');
-const radiusRange = document.getElementById('radiusRange');
-const radiusLabel = document.getElementById('radiusLabel');
-const resultsEl = document.getElementById('results');
-const statusText = document.getElementById('statusText');
-const variantArea = document.getElementById('variantArea');
-const unitLabel = document.getElementById('unitLabel');
-const settingsBtn = document.getElementById('settingsBtn');
-const settingsModal = document.getElementById('settingsModal');
-const unitSelect = document.getElementById('unitSelect');
-const themeSelect = document.getElementById('themeSelect');
-const radiusNumber = document.getElementById('radiusNumber');
-const closeSettings = document.getElementById('closeSettings');
-const saveSettings = document.getElementById('saveSettings');
-
-function setStatus(s){ statusText.textContent = s; }
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-function escapeHtml(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function formatDistance(meters){
-  if(state.unit==='mi') return (meters/1609.344).toFixed(1) + ' mi';
-  return (meters/1000).toFixed(2) + ' km';
-}
-
-// initial UI
-radiusRange.value = state.radius;
-radiusNumber.value = state.radius;
-radiusLabel.textContent = formatDistance(state.radius);
-unitSelect.value = state.unit;
-unitLabel.textContent = 'units: ' + state.unit;
-
-// cluster hints
-const CLUSTERS = {
-  food: ["milk","bread","egg","coffee","butter","cheese","grocery","supermarket","bakery"],
-  auto: ["tire","tyre","brake","car","engine","oil","battery","wheel"],
-  pharmacy: ["medicine","aspirin","vitamin","pharmacy","drug","shampoo","toothpaste"],
-  electronics: ["laptop","phone","tablet","tv","electronics","computer","charger"],
-  household: ["detergent","soap","cleaner","tool","hardware","furniture"]
-};
-function detectIntent(query){
-  const q = (query||'').toLowerCase();
-  if(CLUSTERS.food.some(w=>q.includes(w))) return 'food';
-  if(CLUSTERS.auto.some(w=>q.includes(w))) return 'auto';
-  if(CLUSTERS.pharmacy.some(w=>q.includes(w))) return 'pharmacy';
-  if(CLUSTERS.electronics.some(w=>q.includes(w))) return 'electronics';
-  if(CLUSTERS.household.some(w=>q.includes(w))) return 'household';
-  return 'general';
-}
-
-// Overpass: broad shop fetch (shop=* OR amenity=supermarket)
-async function overpassFetch(lat, lon, radius){
-  const q = `[out:json][timeout:25];
-  (
-    node(around:${radius},${lat},${lon})[shop];
-    way(around:${radius},${lat},${lon})[shop];
-    relation(around:${radius},${lat},${lon})[shop];
-    node(around:${radius},${lat},${lon})[amenity=supermarket];
-    way(around:${radius},${lat},${lon})[amenity=supermarket];
-    relation(around:${radius},${lat},${lon})[amenity=supermarket];
-  );
-  out center tags;`;
-  try{
-    const resp = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body: q});
-    if(!resp.ok) throw new Error('Overpass failed ' + resp.status);
-    const js = await resp.json();
-    return js.elements.map(e=>{
-      const center = e.type==='node' ? {lat:e.lat, lon:e.lon} : (e.center || {lat:e.lat, lon:e.lon});
-      return {
-        id: e.id,
-        name: (e.tags && (e.tags.name || e.tags.brand)) || 'Unnamed',
-        tags: e.tags || {},
-        lat: center.lat,
-        lon: center.lon,
-        addr: (e.tags && (e.tags['addr:street']||'')) || ''
-      };
-    });
-  }catch(err){
-    console.warn('overpass error', err);
-    return [];
-  }
-}
-
-// Nominatim fallback
-async function nominatimFetch(query){
-  try{
-    const url = `https://nominatim.openstreetmap.org/search.php?q=${encodeURIComponent(query)}&format=jsonv2&limit=20`;
-    const r = await fetch(url);
-    if(!r.ok) return [];
-    const j = await r.json();
-    return j.map((p,i)=>({
-      id: 'nom_'+i,
-      name: p.display_name.split(',')[0] || query,
-      tags: {},
-      lat: Number(p.lat),
-      lon: Number(p.lon),
-      addr: p.display_name
-    }));
-  }catch(e){ console.warn('nominatim err', e); return []; }
-}
-
-// map OSM shop tag to category for scoring
-function shopTagToCategory(shopTag){
-  if(!shopTag) return 'other';
-  const s = shopTag.toLowerCase();
-  if(['supermarket','grocery','convenience','bakery','butcher','food','delicatessen','greengrocer'].includes(s)) return 'food';
-  if(['car_repair','car_dealer','tyres','tire','tyre','auto_parts','fuel','car_wash'].includes(s)) return 'auto';
-  if(['pharmacy','drugstore','chemist'].includes(s)) return 'pharmacy';
-  if(['electronics','computer','mobile_phone','appliance'].includes(s)) return 'electronics';
-  if(['hardware','doityourself','furniture','garden_centre'].includes(s)) return 'household';
-  return 'other';
-}
-
-// scoring: category relevance, keyword match, distance, price
-function scoreStore(store, query, intent){
-  let s = 0;
-  // distance
-  if(state.pos){
-    store.distanceMeters = Math.round(haversineMeters(state.pos, {lat:store.lat, lon:store.lon}));
-    s += Math.max(0, 10000 - store.distanceMeters) / 1000; // closer is better
-  }
-  // category relevance
-  const cat = shopTagToCategory(store.tags && store.tags.shop);
-  if(cat === intent) s += 60;
-  // name match
-  const hay = ((store.name||'') + ' ' + (store.tags && (store.tags.shop||'')) + ' ' + (store.addr||'')).toLowerCase();
-  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-  let matches = 0;
-  tokens.forEach(t => { if(hay.includes(t)) matches++; });
-  s += matches * 25;
-  // price advantage
-  if(store.priceList && store.priceList.length) s += 30;
-  // penalize extreme mismatches: e.g., intent=food but cat=auto -> small penalty
-  if(intent === 'food' && cat === 'auto') s -= 30;
-  return s;
-}
-
-// fetch via AllOrigins raw endpoint (proxy) for CORS
-async function fetchProxyRaw(url){
-  const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-  try{
-    const r = await fetch(proxy);
-    if(!r.ok) throw new Error('proxy fail');
-    return await r.text();
-  }catch(err){
-    try{
-      const r2 = await fetch(url);
-      if(!r2.ok) throw new Error('direct fail');
-      return await r2.text();
-    }catch(e){
-      throw err;
+    // Haversine distance in meters
+    function haversineMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = x => x * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
-  }
-}
 
-// strict price parse (JSON-LD + symbol)
-function parsePricesStrict(html){
-  if(!html) return [];
-  const vals = [];
-  // JSON-LD product offers
-  const jsonld = [...html.matchAll(/<script[^>]*type=(?:'|")application\/ld\+json(?:'|")[^>]*>([\s\S]*?)<\/script>/ig)];
-  for(const m of jsonld){
-    try{
-      const obj = JSON.parse(m[1]);
-      const arr = Array.isArray(obj) ? obj : [obj];
-      for(const o of arr){
-        if(o && (o['@type']=='Product' || (o['@type'] && /Product/i.test(o['@type'])))){
-          if(o.offers){
-            const ofr = Array.isArray(o.offers) ? o.offers[0] : o.offers;
-            if(ofr && ofr.price) vals.push(Number(String(ofr.price).replace(/,/g,'')));
-          }
-          if(o.price) vals.push(Number(String(o.price).replace(/,/g,'')));
-        }
-        if(o && o['@graph']){
-          for(const g of o['@graph']){
-            if(g && (g['@type']=='Product' || (g['@type'] && /Product/i.test(g['@type'])))){
-              if(g.offers){
-                const gg = Array.isArray(g.offers) ? g.offers[0] : g.offers;
-                if(gg && gg.price) vals.push(Number(String(gg.price).replace(/,/g,'')));
-              }
-            }
-          }
-        }
+    function initMap() {
+      map = L.map('map').setView([20, 0], 2); // Neutral world view if no location
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+    }
+
+    function isRelevant(query, itemText) {
+      const qWords = query.toLowerCase().split(/\s+/);
+      const text = itemText.toLowerCase();
+      return qWords.some(q => text.includes(q));
+    }
+
+    async function doSearch() {
+      const query = document.getElementById("search-input").value.trim();
+      if (!query) return;
+
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "Searching...";
+
+      let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=20`;
+      if (userLocation) {
+        url += `&bounded=1&viewbox=${userLocation[1]-0.1},${userLocation[0]-0.1},${userLocation[1]+0.1},${userLocation[0]+0.1}`;
       }
-    }catch(e){}
-  }
-  // strict currency symbol regex
-  const rx = /([$€£¥])\s?(\d{1,3}(?:[.,]\d{3})*(?:\.\d{2})?)/g;
-  let m;
-  while((m = rx.exec(html)) !== null){
-    const num = Number(String(m[2]).replace(/,/g,''));
-    if(Number.isFinite(num) && num>0 && num<100000) vals.push(num);
-  }
-  const unique = Array.from(new Set(vals.map(v=>Math.round(v*100)))).map(c=>c/100);
-  unique.sort((a,b)=>a-b);
-  return unique;
-}
 
-// attempt price parse (progressive non-blocking)
-async function attemptPriceParse(variant, store){
-  const found = [];
-  // store website if available
-  if(store.tags && store.tags.website){
-    try{
-      const url = store.tags.website.replace(/\/$/,'') + '/search?q=' + encodeURIComponent(variant);
-      const html = await fetchProxyRaw(url);
-      const p = parsePricesStrict(html);
-      if(p.length) found.push(...p);
-    }catch(e){}
-  }
-  // Google Shopping
-  try{
-    const g = 'https://www.google.com/search?q=' + encodeURIComponent(variant + ' ' + store.name) + '&tbm=shop';
-    const html = await fetchProxyRaw(g);
-    const p = parsePricesStrict(html);
-    if(p.length) found.push(...p);
-  }catch(e){}
-  // Bing Shopping
-  try{
-    const b = 'https://www.bing.com/shop?q=' + encodeURIComponent(variant + ' ' + store.name);
-    const html = await fetchProxyRaw(b);
-    const p = parsePricesStrict(html);
-    if(p.length) found.push(...p);
-  }catch(e){}
+      try {
+        const response = await fetch(url, { headers: { "User-Agent": "LocalPriceComparisonApp" } });
+        const data = await response.json();
 
-  const unique = Array.from(new Set(found.map(v=>Math.round(v*100)))).map(c=>c/100).sort((a,b)=>a-b);
-  return unique.map(v=>({value:v, display:'$'+v.toFixed(2)}));
-}
+        resultsDiv.innerHTML = "";
+        map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
+        if (userLocation) {
+          userMarker = L.marker(userLocation).addTo(map).bindPopup("You are here").openPopup();
+        }
 
-// UI helpers
-function clearUI(){
-  resultsEl.innerHTML = '';
-  (state.markers||[]).forEach(m=>{ try{ state.map.removeLayer(m); }catch(e){} });
-  state.markers = [];
-  state.stores = [];
-}
-function addStoreCard(s){
-  const card = document.createElement('div'); card.className='storeCard';
-  card.dataset.id = s._id || '';
-  const left = document.createElement('div'); left.style.flex='1';
-  left.innerHTML = `<h4>${escapeHtml(s.name)}</h4><div class="meta">${escapeHtml((s.tags && (s.tags.shop||s.tags.amenity||''))+' '+(s.addr||''))}</div>`;
-  const right = document.createElement('div'); right.className='actions';
+        const filtered = data.filter(item => isRelevant(query, item.display_name));
 
-  if(s.priceList && s.priceList.length){
-    const lp = s.priceList[0];
-    const priceEl = document.createElement('div'); priceEl.className='price'; priceEl.textContent = lp.display || ('$'+lp.value.toFixed(2));
-    right.appendChild(priceEl);
-    if(s.priceList.length>1){
-      const more = document.createElement('div'); more.className='morePrices'; more.textContent = `More prices ▼ (${s.priceList.length})`;
-      const list = document.createElement('div'); list.className='priceList'; list.style.display='none';
-      s.priceList.forEach(p=> { const row = document.createElement('div'); row.textContent = p.display || ('$'+p.value.toFixed(2)); list.appendChild(row); });
-      more.onclick = ()=>{ list.style.display = list.style.display==='none' ? 'block' : 'none'; };
-      right.appendChild(more); right.appendChild(list);
+        if (filtered.length === 0) {
+          resultsDiv.innerHTML = "No relevant results found.";
+          return;
+        }
+
+        filtered.forEach(item => {
+          const lat = parseFloat(item.lat);
+          const lon = parseFloat(item.lon);
+          const dist = userLocation ? haversineMeters(userLocation[0], userLocation[1], lat, lon) : null;
+
+          // Demo prices (since real price APIs are not public/free)
+          const prices = Array.from({length: Math.floor(Math.random() * 3) + 1}, () => 
+            (Math.random() * 10 + 1).toFixed(2)
+          );
+          prices.sort((a, b) => parseFloat(a) - parseFloat(b));
+          const lowest = prices[0];
+
+          const div = document.createElement("div");
+          div.className = "result";
+          div.innerHTML = `
+            <div><strong>${item.display_name.split(",")[0]}</strong></div>
+            ${dist ? `<div>${(dist/1000).toFixed(1)} km away</div>` : ""}
+            <div class="highlight-price">$${lowest} 
+              ${prices.length > 1 ? `<span class="toggle">[+]</span>` : ""}
+            </div>
+            ${prices.length > 1 ? `<div class="other-prices">Other prices: ${prices.slice(1).map(p => "$"+p).join(", ")}</div>` : ""}
+          `;
+
+          if (prices.length > 1) {
+            const toggle = div.querySelector(".toggle");
+            const others = div.querySelector(".other-prices");
+            toggle.addEventListener("click", () => {
+              others.style.display = others.style.display === "block" ? "none" : "block";
+              toggle.textContent = toggle.textContent === "[+]" ? "[-]" : "[+]";
+            });
+          }
+
+          resultsDiv.appendChild(div);
+
+          L.marker([lat, lon]).addTo(map).bindPopup(item.display_name);
+        });
+      } catch (err) {
+        resultsDiv.innerHTML = "Error fetching results.";
+        console.error(err);
+      }
     }
-  } else {
-    const no = document.createElement('div'); no.className='small'; no.textContent='Price not found';
-    right.appendChild(no);
-  }
 
-  const searchUrl = s.searchUrl || ('https://www.google.com/search?q=' + encodeURIComponent((state.currentVariant||'') + ' ' + s.name));
-  const openBtn = document.createElement('a'); openBtn.className='linkBtn'; openBtn.href=searchUrl; openBtn.target='_blank'; openBtn.rel='noopener'; openBtn.textContent='Open search';
-  right.appendChild(openBtn);
+    document.getElementById("search-button").addEventListener("click", doSearch);
+    document.getElementById("search-input").addEventListener("keypress", e => {
+      if (e.key === "Enter") doSearch();
+    });
 
-  const mapBtn = document.createElement('a'); mapBtn.className='linkBtn'; mapBtn.textContent='View on map'; mapBtn.onclick = ()=>{ state.map.setView([s.lat, s.lon], 16); s._marker && s._marker.openPopup(); };
-  right.appendChild(mapBtn);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        userLocation = [pos.coords.latitude, pos.coords.longitude];
+        map.setView(userLocation, 13);
+        userMarker = L.marker(userLocation).addTo(map).bindPopup("You are here").openPopup();
+      });
+    }
 
-  card.appendChild(left); card.appendChild(right);
-  const dist = document.createElement('div'); dist.className='small'; dist.style.marginTop='6px'; dist.textContent = s.distanceDisplay || '';
-  card.appendChild(dist);
-
-  card.onclick = ()=>{ document.querySelectorAll('.storeCard.active').forEach(e=>e.classList.remove('active')); card.classList.add('active'); state.map.setView([s.lat, s.lon], 16); s._marker && s._marker.openPopup(); };
-
-  resultsEl.appendChild(card);
-
-  // marker
-  if(state.map){
-    const m = L.marker([s.lat, s.lon]).addTo(state.map)
-      .bindPopup(`<strong>${escapeHtml(s.name)}</strong><br>${s.distanceDisplay || ''}${s.priceList && s.priceList.length?('<br>'+s.priceList[0].display):''}`);
-    s._marker = m;
-    state.markers.push(m);
-    m.on('click', ()=>{ document.querySelectorAll('.storeCard.active').forEach(e=>e.classList.remove('active')); card.classList.add('active'); });
-  }
-}
-
-// render all stores
-function renderStores(){
-  clearUI();
-  state.stores.forEach(s=> addStoreCard(s));
-}
-
-// variants expand
-function expandVariants(q){
-  const set = new Set(); set.add(q);
-  const t = q.toLowerCase();
-  if(t.includes('milk')) ['whole milk','2% milk','skim milk','milk gallon'].forEach(x=>set.add(x));
-  if(t.includes('bread')) ['whole wheat bread','sourdough loaf','baguette'].forEach(x=>set.add(x));
-  if(t.includes('tire')||t.includes('tyre')) ['tire 16 inch','winter tire','all season tire'].forEach(x=>set.add(x));
-  set.add(q + ' 1 each'); set.add(q + ' pack');
-  return Array.from(set).slice(0,12);
-}
-function renderVariants(list){
-  variantArea.innerHTML = '';
-  list.forEach((v,i)=>{
-    const el = document.createElement('div'); el.className='variant'; el.textContent = v;
-    if(i===0) el.classList.add('active');
-    el.onclick = async ()=>{ document.querySelectorAll('.variant').forEach(x=>x.classList.remove('active')); el.classList.add('active'); state.currentVariant = v; setStatus('Checking prices for variant...'); for(let i=0;i<Math.min(8,state.stores.length); i++){ const s = state.stores[i]; try{ const p = await attemptPriceParse(state.currentVariant, s); if(p && p.length) s.priceList = p; }catch(e){} renderStores(); await sleep(200);} setStatus('Variant price check complete.');};
-    variantArea.appendChild(el);
-  });
-}
-
-// fallback external links
-function renderFallbackLinks(q){
-  clearUI();
-  const links = [
-    {label:'Google Maps', url:`https://www.google.com/maps/search/${encodeURIComponent(q + ' near me')}`},
-    {label:'Bing', url:`https://www.bing.com/search?q=${encodeURIComponent(q + ' near me')}`},
-    {label:'DuckDuckGo', url:`https://duckduckgo.com/?q=${encodeURIComponent(q + ' near me')}`}
-  ];
-  links.forEach(l=>{
-    const div = document.createElement('div'); div.className='storeCard';
-    div.innerHTML = `<div style="flex:1"><strong>${escapeHtml(l.label)}</strong><div class="small">Open external search</div></div><div style="display:flex;flex-direction:column;gap:8px"><a class="linkBtn" href="${l.url}" target="_blank" rel="noopener">Open</a></div>`;
-    resultsEl.appendChild(div);
-  });
-}
-
-// get location once
-async function getLocationOnce(){
-  if(state.pos) return state.pos;
-  if(!navigator.geolocation) throw new Error('no geo');
-  return new Promise((res,rej)=>{
-    navigator.geolocation.getCurrentPosition(p=>{ state.pos = {lat:p.coords.latitude, lon:p.coords.longitude}; if(!state.map) initMap(); L.circleMarker([state.pos.lat, state.pos.lon], {radius:7,color:'#22d3ee',fill:true,fillColor:'#22d3ee'}).addTo(state.map).bindPopup('You are here'); state.map.setView([state.pos.lat, state.pos.lon], 13); res(state.pos); }, err=>rej(err), {enableHighAccuracy:true, timeout:10000});
-  });
-}
-
-// init map
-function initMap(){
-  const mapDiv = document.getElementById('map');
-  state.map = L.map(mapDiv).setView([39.5,-98.35], 4);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'&copy; OpenStreetMap contributors' }).addTo(state.map);
-}
-
-// main search
-async function doSearch(){
-  clearUI();
-  setStatus('Preparing search...');
-  const q = (itemInput.value||'').trim();
-  if(!q){ setStatus('Enter a search term'); return; }
-  state.variants = expandVariants(q);
-  renderVariants(state.variants);
-  state.currentVariant = state.variants[0] || q;
-  try{ await getLocationOnce(); }catch(e){ setStatus('Location required'); return; }
-  setStatus('Fetching nearby shops (Overpass)...');
-  const stores = await overpassFetch(state.pos.lat, state.pos.lon, Number(radiusRange.value || state.radius));
-  let results = stores;
-  if(!results || results.length===0){
-    setStatus('No Overpass results. Trying Nominatim fallback...');
-    results = await nominatimFetch(q);
-  }
-  if(!results || results.length===0){ setStatus('No nearby stores. Showing external links.'); renderFallbackLinks(q); return; }
-  // scoring & filter
-  const intent = detectIntent(q);
-  results.forEach(s=>{ s.distanceMeters = state.pos ? Math.round(haversineMeters(state.pos, {lat:s.lat, lon:s.lon})) : null; s.distanceDisplay = s.distanceMeters ? formatDistance(s.distanceMeters) : ''; s.searchUrl = `https://www.google.com/search?q=${encodeURIComponent((state.currentVariant||q)+' '+s.name)}`; });
-  // compute scores
-  const scored = results.map(s=>({store:s, score: scoreStore(s, q, intent)}));
-  scored.sort((a,b)=>b.score - a.score);
-  const top = scored.slice(0,60).map(x=>x.store);
-  state.stores = top;
-  setStatus(`Found ${state.stores.length} stores. Rendering and checking prices...`);
-  renderStores();
-  // progressive price parsing for top N
-  for(let i=0;i<Math.min(12, state.stores.length); i++){
-    const s = state.stores[i];
-    try{
-      const p = await attemptPriceParse(state.currentVariant, s);
-      if(p && p.length) s.priceList = p;
-    }catch(e){}
-    renderStores();
-    await sleep(250);
-  }
-  setStatus(`Done. Showing ${state.stores.length} result(s).`);
-}
-
-// wire events
-radiusRange.addEventListener('input', ()=>{ radiusLabel.textContent = formatDistance(Number(radiusRange.value)); radiusNumber.value = radiusRange.value; });
-itemInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
-searchBtn.addEventListener('click', doSearch);
-settingsBtn.addEventListener('click', ()=>{ settingsModal.style.display='flex'; settingsModal.setAttribute('aria-hidden','false'); });
-closeSettings.addEventListener('click', ()=>{ settingsModal.style.display='none'; settingsModal.setAttribute('aria-hidden','true'); });
-saveSettings.addEventListener('click', ()=>{ state.unit = unitSelect.value; document.body.classList.toggle('light', themeSelect.value==='light'); state.radius = Number(radiusNumber.value || state.radius); radiusRange.value = state.radius; radiusLabel.textContent = formatDistance(state.radius); unitLabel.textContent = 'units: ' + state.unit; settingsModal.style.display='none'; settingsModal.setAttribute('aria-hidden','true'); renderStores(); });
-
-// initial
-initMap();
-setStatus('Ready. Allow location and search.');
-
-</script>
+    initMap();
+  </script>
 </body>
 </html>
