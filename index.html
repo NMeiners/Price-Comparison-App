@@ -6,29 +6,41 @@
   <title>Local Price Finder</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <style>
+    :root {
+      --bg: #ffffff;
+      --text: #222;
+      --accent: #2d6cdf;
+      --border: #ddd;
+    }
+    body.dark {
+      --bg: #1e1e1e;
+      --text: #ddd;
+      --accent: #4a90e2;
+      --border: #444;
+    }
     body {
       margin: 0;
       font-family: system-ui, sans-serif;
       display: flex;
       flex-direction: column;
       height: 100vh;
-      color: #222;
+      color: var(--text);
+      background: var(--bg);
     }
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 0.5rem 1rem;
-      background: #2d6cdf;
+      background: var(--accent);
       color: white;
       font-size: 1.2rem;
     }
-    #unitToggle {
-      background: rgba(255,255,255,0.2);
+    #settingsBtn {
+      background: none;
       border: none;
       color: white;
-      padding: 0.3rem 0.6rem;
-      border-radius: 4px;
+      font-size: 1.3rem;
       cursor: pointer;
     }
     #searchBar {
@@ -37,17 +49,22 @@
       gap: 0.5rem;
       background: #f5f5f5;
     }
+    body.dark #searchBar {
+      background: #2a2a2a;
+    }
     #searchBar input {
       flex: 1;
       padding: 0.5rem;
       font-size: 1rem;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border);
       border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
     }
     #searchBar button {
       padding: 0.5rem 1rem;
       font-size: 1rem;
-      background: #2d6cdf;
+      background: var(--accent);
       color: white;
       border: none;
       border-radius: 4px;
@@ -57,33 +74,47 @@
       flex: 1;
       display: flex;
       flex-direction: row;
-      min-height: 0; /* for flexbox scrolling */
+      min-height: 0;
     }
     #results {
       flex: 1;
       max-width: 400px;
       overflow-y: auto;
-      border-right: 1px solid #ccc;
+      border-right: 1px solid var(--border);
       padding: 0.5rem;
-      background: #fff;
+      background: var(--bg);
     }
     #map {
       flex: 2;
     }
     .result {
-      border-bottom: 1px solid #eee;
-      padding: 0.5rem 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem;
+      margin-bottom: 0.5rem;
       cursor: pointer;
+      background: var(--bg);
+      transition: background 0.2s;
     }
     .result:hover {
       background: #f0f4ff;
     }
+    body.dark .result:hover {
+      background: #333a50;
+    }
     .result.active {
+      border-color: var(--accent);
       background: #e0ebff;
+    }
+    body.dark .result.active {
+      background: #2d3b5a;
     }
     .distance {
       color: #555;
       font-size: 0.9rem;
+    }
+    body.dark .distance {
+      color: #aaa;
     }
     @media (max-width: 768px) {
       #content {
@@ -92,19 +123,52 @@
       #results {
         max-width: none;
         border-right: none;
-        border-top: 1px solid #ccc;
+        border-top: 1px solid var(--border);
         max-height: 40%;
       }
       #map {
         height: 60%;
       }
     }
+    /* Settings modal */
+    #settingsModal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    #settingsContent {
+      background: var(--bg);
+      color: var(--text);
+      padding: 1rem;
+      border-radius: 8px;
+      width: 300px;
+    }
+    #settingsContent h2 {
+      margin-top: 0;
+    }
+    #settingsContent label {
+      display: block;
+      margin: 0.5rem 0;
+    }
+    #closeSettings {
+      margin-top: 1rem;
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
   <header>
     <div>Local Price Finder</div>
-    <button id="unitToggle" onclick="toggleUnits()">Miles</button>
+    <button id="settingsBtn">⚙️</button>
   </header>
   <div id="searchBar">
     <input id="query" type="text" placeholder="Search for an item (e.g., milk, bread, batteries)">
@@ -113,6 +177,28 @@
   <div id="content">
     <div id="results"><p>Enter a search term above to get started.</p></div>
     <div id="map"></div>
+  </div>
+
+  <!-- Settings modal -->
+  <div id="settingsModal">
+    <div id="settingsContent">
+      <h2>Settings</h2>
+      <label>
+        Units:
+        <select id="unitSelect">
+          <option value="km">Kilometers</option>
+          <option value="mi">Miles</option>
+        </select>
+      </label>
+      <label>
+        Theme:
+        <select id="themeSelect">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+      <button id="closeSettings">Close</button>
+    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -134,7 +220,7 @@
       resultsLayer = L.layerGroup().addTo(map);
     }
 
-    // Haversine formula
+    // Distance calc
     function distanceKm(lat1, lon1, lat2, lon2) {
       const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -153,17 +239,7 @@
       return `${km.toFixed(1)} km`;
     }
 
-    function toggleUnits() {
-      useMiles = !useMiles;
-      document.getElementById("unitToggle").textContent = useMiles ? "Kilometers" : "Miles";
-      // Refresh displayed distances
-      const results = document.querySelectorAll(".result[data-dist]");
-      results.forEach(el => {
-        const km = parseFloat(el.getAttribute("data-dist"));
-        el.querySelector(".distance").textContent = formatDistance(km);
-      });
-    }
-
+    // Geolocation
     navigator.geolocation.getCurrentPosition(pos => {
       userLocation = [pos.coords.latitude, pos.coords.longitude];
       initMap(userLocation[0], userLocation[1]);
@@ -171,6 +247,7 @@
       alert("Could not get your location. Please allow location access.");
     });
 
+    // Search
     async function searchItems() {
       const query = document.getElementById("query").value.trim();
       if (!query) return;
@@ -197,11 +274,12 @@
         resultsLayer.clearLayers();
 
         let count = 0;
-        data.elements.forEach((store, idx) => {
+        data.elements.forEach((store) => {
           const name = store.tags.name || "Unnamed store";
           const shopType = store.tags.shop || "store";
           const distKm = distanceKm(lat, lon, store.lat, store.lon);
 
+          // Basic matching
           if (name.toLowerCase().includes(query.toLowerCase()) ||
               shopType.toLowerCase().includes(query.toLowerCase())) {
             count++;
@@ -233,6 +311,41 @@
         console.error(e);
       }
     }
+
+    // Enter key triggers search
+    document.getElementById("query").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        searchItems();
+      }
+    });
+
+    // Settings modal logic
+    const settingsBtn = document.getElementById("settingsBtn");
+    const settingsModal = document.getElementById("settingsModal");
+    const closeSettings = document.getElementById("closeSettings");
+
+    settingsBtn.onclick = () => { settingsModal.style.display = "flex"; };
+    closeSettings.onclick = () => { settingsModal.style.display = "none"; };
+
+    // Units
+    document.getElementById("unitSelect").onchange = (e) => {
+      useMiles = e.target.value === "mi";
+      // Refresh distances
+      const results = document.querySelectorAll(".result[data-dist]");
+      results.forEach(el => {
+        const km = parseFloat(el.getAttribute("data-dist"));
+        el.querySelector(".distance").textContent = formatDistance(km);
+      });
+    };
+
+    // Theme
+    document.getElementById("themeSelect").onchange = (e) => {
+      if (e.target.value === "dark") {
+        document.body.classList.add("dark");
+      } else {
+        document.body.classList.remove("dark");
+      }
+    };
   </script>
 </body>
 </html>
