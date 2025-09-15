@@ -1,151 +1,184 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Local Price Comparison</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-    header { background: #0078d7; color: white; padding: 1em; text-align: center; }
-    #search-bar { display: flex; padding: 10px; gap: 5px; }
-    #search-input { flex: 1; padding: 8px; }
-    #results { max-height: 40vh; overflow-y: auto; padding: 10px; border-top: 1px solid #ccc; }
-    .result { padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer; }
-    .highlight-price { font-weight: bold; color: green; }
-    .other-prices { display: none; margin-top: 5px; font-size: 0.9em; color: #444; }
-    #map { height: 50vh; }
-    .toggle { color: #0078d7; cursor: pointer; margin-left: 5px; font-size: 0.9em; }
-  </style>
+<meta charset="UTF-8">
+<title>Local Price Comparison</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; transition: background 0.3s, color 0.3s;}
+  header { background: #0078d7; color: white; padding: 1em; display: flex; justify-content: space-between; align-items: center;}
+  #search-bar { display: flex; padding: 10px; gap: 5px; flex-wrap: wrap; }
+  #search-input { flex: 1; padding: 8px; min-width: 150px; }
+  #results { max-height: 40vh; overflow-y: auto; padding: 10px; border-top: 1px solid #ccc; }
+  .result { padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer; }
+  .highlight-price { font-weight: bold; color: green; }
+  .other-prices { display: none; margin-top: 5px; font-size: 0.9em; color: #444; }
+  #map { height: 50vh; }
+  .toggle { color: #0078d7; cursor: pointer; margin-left: 5px; font-size: 0.9em; }
+  #settings { position: fixed; top: 60px; right: 10px; background: white; border: 1px solid #ccc; padding: 10px; display: none; z-index: 1000; }
+  #settings label { display: block; margin-bottom: 5px; }
+  .dark-mode { background: #1e1e1e; color: #eee; }
+  .dark-mode #settings { background: #333; color: #eee; border-color: #555; }
+</style>
 </head>
 <body>
-  <header>
-    <h1>Local Price Comparison</h1>
-  </header>
-  <div id="search-bar">
-    <input id="search-input" type="text" placeholder="Search for items (e.g. milk, bread, tires)">
-    <button id="search-button">Search</button>
-  </div>
-  <div id="results"></div>
-  <div id="map"></div>
+<header>
+  <h1>Local Price Comparison</h1>
+  <button id="settings-toggle">⚙️</button>
+</header>
+<div id="settings">
+  <label>
+    Distance Unit:
+    <select id="unit-select">
+      <option value="km" selected>Kilometers</option>
+      <option value="mi">Miles</option>
+    </select>
+  </label>
+  <label>
+    Theme:
+    <select id="theme-select">
+      <option value="light" selected>Light</option>
+      <option value="dark">Dark</option>
+    </select>
+  </label>
+</div>
+<div id="search-bar">
+  <input id="search-input" type="text" placeholder="Search for items (e.g., milk, bread, tires)">
+  <button id="search-button">Search</button>
+</div>
+<div id="results"></div>
+<div id="map"></div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script>
-    let map, userMarker;
-    let userLocation = null;
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+let map, userMarker;
+let userLocation = null;
+let distanceUnit = "km";
 
-    // Haversine distance in meters
-    function haversineMeters(lat1, lon1, lat2, lon2) {
-      const R = 6371000;
-      const toRad = x => x * Math.PI / 180;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a =
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+// Haversine distance
+function haversineMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = x => x * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function initMap() {
+  map = L.map('map').setView([20,0],2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19,
+    attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(map);
+}
+
+function isRelevant(query, text) {
+  const qWords = query.toLowerCase().split(/\s+/);
+  return qWords.some(q => text.toLowerCase().includes(q));
+}
+
+function formatDistance(meters) {
+  return distanceUnit === "km" ? (meters/1000).toFixed(1)+" km" : (meters/1609.344).toFixed(1)+" mi";
+}
+
+// Parse prices from OSM or any available CORS-friendly source
+function parsePrices(item){
+  let prices=[];
+  try{
+    if(item.extratags && item.extratags.price_range) prices.push(item.extratags.price_range);
+    // Extend here: add CORS-friendly retailer feeds (Walmart, Target) if accessible
+  }catch(e){}
+  return prices;
+}
+
+async function doSearch() {
+  const query = document.getElementById("search-input").value.trim();
+  if(!query) return;
+  const resultsDiv = document.getElementById("results");
+  resultsDiv.innerHTML = "Searching...";
+
+  let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=20`;
+  if(userLocation){
+    url += `&bounded=1&viewbox=${userLocation[1]-0.1},${userLocation[0]-0.1},${userLocation[1]+0.1},${userLocation[0]+0.1}`;
+  }
+
+  try{
+    const response = await fetch(url,{headers:{"User-Agent":"LocalPriceComparisonApp"}});
+    const data = await response.json();
+
+    resultsDiv.innerHTML="";
+    map.eachLayer(layer=>{if(layer instanceof L.Marker) map.removeLayer(layer);});
+    if(userLocation){
+      userMarker = L.marker(userLocation).addTo(map).bindPopup("You are here").openPopup();
     }
 
-    function initMap() {
-      map = L.map('map').setView([20, 0], 2); // Neutral world view if no location
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(map);
-    }
+    const filtered = data.filter(item=>isRelevant(query,item.display_name));
+    if(filtered.length===0){ resultsDiv.innerHTML="No relevant results found."; return; }
 
-    function isRelevant(query, itemText) {
-      const qWords = query.toLowerCase().split(/\s+/);
-      const text = itemText.toLowerCase();
-      return qWords.some(q => text.includes(q));
-    }
+    filtered.forEach(item=>{
+      const lat = parseFloat(item.lat);
+      const lon = parseFloat(item.lon);
+      const dist = userLocation ? haversineMeters(userLocation[0],userLocation[1],lat,lon):null;
 
-    async function doSearch() {
-      const query = document.getElementById("search-input").value.trim();
-      if (!query) return;
+      let prices = parsePrices(item);
+      prices = prices.map(p=>parseFloat(p)).filter(p=>!isNaN(p));
+      prices.sort((a,b)=>a-b);
+      const lowest = prices.length>0?prices[0]:null;
 
-      const resultsDiv = document.getElementById("results");
-      resultsDiv.innerHTML = "Searching...";
-
-      let url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&addressdetails=1&limit=20`;
-      if (userLocation) {
-        url += `&bounded=1&viewbox=${userLocation[1]-0.1},${userLocation[0]-0.1},${userLocation[1]+0.1},${userLocation[0]+0.1}`;
-      }
-
-      try {
-        const response = await fetch(url, { headers: { "User-Agent": "LocalPriceComparisonApp" } });
-        const data = await response.json();
-
-        resultsDiv.innerHTML = "";
-        map.eachLayer(layer => { if (layer instanceof L.Marker) map.removeLayer(layer); });
-        if (userLocation) {
-          userMarker = L.marker(userLocation).addTo(map).bindPopup("You are here").openPopup();
-        }
-
-        const filtered = data.filter(item => isRelevant(query, item.display_name));
-
-        if (filtered.length === 0) {
-          resultsDiv.innerHTML = "No relevant results found.";
-          return;
-        }
-
-        filtered.forEach(item => {
-          const lat = parseFloat(item.lat);
-          const lon = parseFloat(item.lon);
-          const dist = userLocation ? haversineMeters(userLocation[0], userLocation[1], lat, lon) : null;
-
-          // Demo prices (since real price APIs are not public/free)
-          const prices = Array.from({length: Math.floor(Math.random() * 3) + 1}, () => 
-            (Math.random() * 10 + 1).toFixed(2)
-          );
-          prices.sort((a, b) => parseFloat(a) - parseFloat(b));
-          const lowest = prices[0];
-
-          const div = document.createElement("div");
-          div.className = "result";
-          div.innerHTML = `
-            <div><strong>${item.display_name.split(",")[0]}</strong></div>
-            ${dist ? `<div>${(dist/1000).toFixed(1)} km away</div>` : ""}
-            <div class="highlight-price">$${lowest} 
-              ${prices.length > 1 ? `<span class="toggle">[+]</span>` : ""}
-            </div>
-            ${prices.length > 1 ? `<div class="other-prices">Other prices: ${prices.slice(1).map(p => "$"+p).join(", ")}</div>` : ""}
-          `;
-
-          if (prices.length > 1) {
-            const toggle = div.querySelector(".toggle");
-            const others = div.querySelector(".other-prices");
-            toggle.addEventListener("click", () => {
-              others.style.display = others.style.display === "block" ? "none" : "block";
-              toggle.textContent = toggle.textContent === "[+]" ? "[-]" : "[+]";
-            });
-          }
-
-          resultsDiv.appendChild(div);
-
-          L.marker([lat, lon]).addTo(map).bindPopup(item.display_name);
+      const div=document.createElement("div");
+      div.className="result";
+      div.innerHTML=`
+        <div><strong>${item.display_name.split(",")[0]}</strong></div>
+        ${dist?`<div>${formatDistance(dist)} away</div>`:""}
+        <div class="highlight-price">${lowest!==null?`$${lowest}`:"Price not available"} 
+          ${prices.length>1?`<span class="toggle">[+]</span>`:""}
+        </div>
+        ${prices.length>1?`<div class="other-prices">Other prices: ${prices.slice(1).map(p=>"$"+p).join(", ")}</div>`:""}
+      `;
+      if(prices.length>1){
+        const toggle=div.querySelector(".toggle");
+        const others=div.querySelector(".other-prices");
+        toggle.addEventListener("click",()=>{ 
+          others.style.display = others.style.display==="block"?"none":"block"; 
+          toggle.textContent = toggle.textContent==="[+]"?"[-]":"[+]";
         });
-      } catch (err) {
-        resultsDiv.innerHTML = "Error fetching results.";
-        console.error(err);
       }
-    }
 
-    document.getElementById("search-button").addEventListener("click", doSearch);
-    document.getElementById("search-input").addEventListener("keypress", e => {
-      if (e.key === "Enter") doSearch();
+      resultsDiv.appendChild(div);
+      L.marker([lat,lon]).addTo(map).bindPopup(item.display_name);
     });
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(pos => {
-        userLocation = [pos.coords.latitude, pos.coords.longitude];
-        map.setView(userLocation, 13);
-        userMarker = L.marker(userLocation).addTo(map).bindPopup("You are here").openPopup();
-      });
-    }
+  }catch(err){
+    resultsDiv.innerHTML="Error fetching results.";
+    console.error(err);
+  }
+}
 
-    initMap();
-  </script>
+// Event listeners
+document.getElementById("search-button").addEventListener("click",doSearch);
+document.getElementById("search-input").addEventListener("keypress",e=>{if(e.key==="Enter")doSearch();});
+document.getElementById("settings-toggle").addEventListener("click",()=>{
+  const s=document.getElementById("settings");
+  s.style.display=s.style.display==="block"?"none":"block";
+});
+document.getElementById("unit-select").addEventListener("change",e=>{distanceUnit=e.target.value;});
+document.getElementById("theme-select").addEventListener("change",e=>{
+  if(e.target.value==="dark") document.body.classList.add("dark-mode");
+  else document.body.classList.remove("dark-mode");
+});
+
+// User location
+if(navigator.geolocation){
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLocation=[pos.coords.latitude,pos.coords.longitude];
+    map.setView(userLocation,13);
+    userMarker=L.marker(userLocation).addTo(map).bindPopup("You are here").openPopup();
+  });
+}
+
+initMap();
+</script>
 </body>
 </html>
