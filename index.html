@@ -48,7 +48,6 @@
   select,input[type="range"]{width:100%}
   .divider{height:1px;background:rgba(255,255,255,0.03);margin:8px 0}
   a.smallLink{color:var(--accent);text-decoration:none;font-weight:700}
-  /* highlight */
   .storeCard.active{outline:2px solid rgba(34,211,238,0.12);background:linear-gradient(90deg,rgba(34,211,238,0.03),transparent)}
   .price{font-weight:800;color:var(--accent);margin-top:6px}
   body.light .price{color:var(--light-accent)}
@@ -90,7 +89,7 @@
       <div id="results"></div>
 
       <div class="divider"></div>
-      <div class="small">If price parsing is blocked the app shows links you can open. Results use Overpass, Nominatim and shopping snippets.</div>
+      <div class="small">If price parsing is blocked the app shows links you can open. Results use Overpass, Nominatim, and shopping snippets.</div>
     </div>
 
     <div class="panel" id="mapPanel">
@@ -99,7 +98,6 @@
   </div>
 </div>
 
-<!-- Settings modal -->
 <div id="settingsModal" class="settingsModal" aria-hidden="true">
   <div class="settingsCard">
     <h3 style="margin:0 0 8px 0">Settings</h3>
@@ -131,135 +129,148 @@ const state = {
   pos: null,
   map: null,
   markers: [],
-  stores: [],
-  unit: 'km',
+  items: [],
   radius: 3000,
-  variants: [],
-  currentVariant: null
+  variants: []
 };
 
-const itemInput = document.getElementById('itemInput');
-const searchBtn = document.getElementById('searchBtn');
-const radiusRange = document.getElementById('radiusRange');
-const radiusLabel = document.getElementById('radiusLabel');
-const resultsEl = document.getElementById('results');
-const statusText = document.getElementById('statusText');
-const variantArea = document.getElementById('variantArea');
-const unitLabel = document.getElementById('unitLabel');
-const settingsBtn = document.getElementById('settingsBtn');
-const settingsModal = document.getElementById('settingsModal');
-const unitSelect = document.getElementById('unitSelect');
-const themeSelect = document.getElementById('themeSelect');
-const radiusNumber = document.getElementById('radiusNumber');
-const closeSettings = document.getElementById('closeSettings');
-const saveSettings = document.getElementById('saveSettings');
-
-radiusRange.value = state.radius;
-radiusNumber.value = state.radius;
-radiusLabel.textContent = formatRadius(state.radius);
-detectDefaultUnit();
-initMapUI();
-wireEvents();
-
-function setStatus(s){ statusText.textContent = s; }
-function formatRadius(m){ return (m/1000).toFixed(1) + ' km'; }
-function detectDefaultUnit(){ if(navigator.language.startsWith('en-US')){ state.unit='mi'; unitLabel.textContent='units: mi'; } }
-
-function initMapUI(){
-  state.map = L.map('map').setView([37.7749,-122.4194], 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(state.map);
-}
-
-function wireEvents(){
-  searchBtn.onclick = () => runSearch(itemInput.value.trim());
-  radiusRange.oninput = () => { state.radius=parseInt(radiusRange.value); radiusLabel.textContent=formatRadius(state.radius); radiusNumber.value=state.radius; }
-  radiusNumber.oninput = () => { state.radius=parseInt(radiusNumber.value); radiusRange.value=state.radius; radiusLabel.textContent=formatRadius(state.radius); }
-  settingsBtn.onclick = () => { settingsModal.style.display='flex'; settingsModal.setAttribute('aria-hidden','false'); }
-  closeSettings.onclick = () => { settingsModal.style.display='none'; settingsModal.setAttribute('aria-hidden','true'); }
-  saveSettings.onclick = () => {
-    state.unit = unitSelect.value;
-    document.body.className = themeSelect.value;
-    unitLabel.textContent = 'units: ' + state.unit;
-    settingsModal.style.display='none';
-    settingsModal.setAttribute('aria-hidden','true');
-  };
-}
-
-function clearResults(){
-  resultsEl.innerHTML='';
-  state.markers.forEach(m=>state.map.removeLayer(m));
-  state.markers=[];
-}
-
-function renderVariantButtons(){
-  variantArea.innerHTML='';
-  state.variants.forEach(v=>{
-    const btn = document.createElement('div');
-    btn.textContent=v;
-    btn.className='variant'+(v===state.currentVariant?' active':'');
-    btn.onclick=()=>{
-      state.currentVariant=v;
-      renderVariantButtons();
-      runSearch(v);
-    };
-    variantArea.appendChild(btn);
-  });
-}
-
-function buildVariants(item){
-  // dynamically create variant array
-  // for now: single element
-  state.variants = [item];
-  state.currentVariant = item;
-  renderVariantButtons();
-}
-
-async function runSearch(query){
-  if(!query){ setStatus('Enter an item'); return; }
-  setStatus('Searching...');
-  clearResults();
-  buildVariants(query);
-
-  if(!state.pos){
-    setStatus('Getting location...');
+// ---------------------- Map ----------------------
+function initMap(){
+  state.map = L.map('map').setView([0,0],13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19
+  }).addTo(state.map);
+  if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(p=>{
       state.pos=[p.coords.latitude,p.coords.longitude];
-      fetchStores(query);
-    },()=>{ setStatus('Location needed'); });
-  } else fetchStores(query);
+      state.map.setView(state.pos,14);
+      L.marker(state.pos).addTo(state.map).bindPopup("You are here").openPopup();
+    }, e=>console.warn(e));
+  }
 }
+initMap();
 
-async function fetchStores(query){
-  setStatus('Fetching stores...');
-  try {
-    const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json][timeout:25];node["shop"](around:${state.radius},${state.pos[0]},${state.pos[1]})["name"];out;`;
-    const resp = await fetch(overpassUrl);
+// ---------------------- Variants (Datamuse API) ----------------------
+async function fetchVariants(term){
+  if(!term) return [];
+  try{
+    const resp = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(term)}&max=5`);
     const data = await resp.json();
-    state.stores = data.elements || [];
-    renderResults();
-  } catch(e){
-    console.error(e);
-    setStatus('Error fetching stores');
+    return data.map(w=>w.word).filter(w=>w.toLowerCase()!==term.toLowerCase());
+  }catch(e){
+    console.error("Error fetching variants:", e);
+    return [];
   }
 }
 
-function renderResults(){
-  resultsEl.innerHTML='';
-  state.stores.forEach(s=>{
+async function updateVariants(term){
+  state.variants = await fetchVariants(term);
+  renderVariants();
+}
+
+function renderVariants(){
+  const area = document.getElementById('variantArea');
+  area.innerHTML='';
+  state.variants.forEach(v=>{
+    const btn = document.createElement('div');
+    btn.className='variant';
+    btn.textContent=v;
+    btn.addEventListener('click',()=>{
+      state.items.push(v);
+      searchStores();
+    });
+    area.appendChild(btn);
+  });
+}
+
+// ---------------------- Overpass Query ----------------------
+function buildOverpassQuery(items,radius,pos){
+  const itemQuery = items.map(i=>`["name"~"${i}",i]`).join(';');
+  return `
+    [out:json][timeout:25];
+    (
+      node["shop"]${itemQuery}(around:${radius},${pos[0]},${pos[1]});
+      way["shop"]${itemQuery}(around:${radius},${pos[0]},${pos[1]});
+      relation["shop"]${itemQuery}(around:${radius},${pos[0]},${pos[1]});
+    );
+    out center;
+  `;
+}
+
+async function fetchOverpass(query){
+  const resp = await fetch('https://overpass-api.de/api/interpreter',{
+    method:'POST',
+    body:query
+  });
+  const data = await resp.json();
+  return data.elements;
+}
+
+// ---------------------- Search & Results ----------------------
+async function searchStores(){
+  if(!state.pos){ alert("No location yet."); return; }
+  const term = document.getElementById('itemInput').value.trim();
+  if(!term) return;
+  state.items=[term];
+
+  await updateVariants(term);
+
+  const query = buildOverpassQuery(state.items,state.radius,state.pos);
+  document.getElementById('statusText').textContent='Searching...';
+  try{
+    const stores = await fetchOverpass(query);
+    showStores(stores);
+  }catch(e){
+    console.error(e);
+    document.getElementById('statusText').textContent='Error fetching results';
+  }
+}
+
+function showStores(stores){
+  state.markers.forEach(m=>state.map.removeLayer(m));
+  state.markers=[];
+  const results = document.getElementById('results');
+  results.innerHTML='';
+  if(stores.length===0){ document.getElementById('statusText').textContent='No stores found'; return; }
+
+  stores.forEach(s=>{
     const card = document.createElement('div');
     card.className='storeCard';
-    card.innerHTML=`<h4>${s.tags.name||'Store'}</h4>
-      <div class="meta">lat:${s.lat.toFixed(5)} lon:${s.lon.toFixed(5)}</div>
-      <div class="price">N/A</div>
-      <div class="actions"><a href="https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=19/${s.lat}/${s.lon}" target="_blank" class="linkBtn">OSM Link</a></div>`;
-    resultsEl.appendChild(card);
+    const name = s.tags && s.tags.name ? s.tags.name : 'Unnamed';
+    card.innerHTML=`<h4>${name}</h4><div class="meta">${s.tags? s.tags.shop || 'Shop': ''}</div>`;
+    results.appendChild(card);
 
-    const marker = L.marker([s.lat,s.lon]).addTo(state.map).bindPopup(s.tags.name||'Store');
+    const marker = L.marker([s.lat || s.center?.lat, s.lon || s.center?.lon]).addTo(state.map).bindPopup(name);
     state.markers.push(marker);
-    marker.on('click',()=>card.scrollIntoView({behavior:'smooth'}));
+
+    card.addEventListener('click',()=>{ marker.openPopup(); });
   });
-  setStatus(`Found ${state.stores.length} stores`);
+
+  document.getElementById('statusText').textContent=`Found ${stores.length} stores`;
 }
+
+// ---------------------- UI Controls ----------------------
+document.getElementById('searchBtn').addEventListener('click',searchStores);
+document.getElementById('itemInput').addEventListener('keydown',e=>{ if(e.key==='Enter') searchStores(); });
+
+const radiusRange = document.getElementById('radiusRange');
+const radiusLabel = document.getElementById('radiusLabel');
+radiusRange.addEventListener('input',()=>{ state.radius=parseInt(radiusRange.value); radiusLabel.textContent=(state.radius/1000).toFixed(1)+' km'; });
+
+const settingsModal = document.getElementById('settingsModal');
+document.getElementById('settingsBtn').addEventListener('click',()=>{ settingsModal.style.display='flex'; });
+document.getElementById('closeSettings').addEventListener('click',()=>{ settingsModal.style.display='none'; });
+document.getElementById('saveSettings').addEventListener('click',()=>{
+  const theme=document.getElementById('themeSelect').value;
+  document.body.className = theme;
+  const units=document.getElementById('unitSelect').value;
+  document.getElementById('unitLabel').textContent='units: '+units;
+  state.radius=parseInt(document.getElementById('radiusNumber').value);
+  radiusRange.value=state.radius;
+  radiusLabel.textContent=(state.radius/1000).toFixed(1)+' km';
+  settingsModal.style.display='none';
+});
 </script>
+<footer class="note">Local Price Finder • Uses Overpass, Nominatim, and Datamuse API • Client-only</footer>
 </body>
 </html>
