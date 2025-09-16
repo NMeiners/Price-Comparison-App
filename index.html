@@ -48,6 +48,7 @@
   select,input[type="range"]{width:100%}
   .divider{height:1px;background:rgba(255,255,255,0.03);margin:8px 0}
   a.smallLink{color:var(--accent);text-decoration:none;font-weight:700}
+  /* highlight */
   .storeCard.active{outline:2px solid rgba(34,211,238,0.12);background:linear-gradient(90deg,rgba(34,211,238,0.03),transparent)}
   .price{font-weight:800;color:var(--accent);margin-top:6px}
   body.light .price{color:var(--light-accent)}
@@ -72,7 +73,7 @@
     <button id="searchBtn" class="btn">Search</button>
     <div style="width:12px"></div>
     <div class="small">Radius:
-      <input id="radiusRange" type="range" min="500" max="20000" step="250" value="3000" style="vertical-align:middle">
+      <input id="radiusRange" type="range" min="500" max="10000" step="250" value="3000" style="vertical-align:middle">
       <span id="radiusLabel">3.0 km</span>
     </div>
   </div>
@@ -89,7 +90,7 @@
       <div id="results"></div>
 
       <div class="divider"></div>
-      <div class="small">If price parsing is blocked, the app shows links you can open. Results use Overpass, Nominatim, and shopping snippets.</div>
+      <div class="small">If price parsing is blocked the app shows links you can open. Results use Overpass, Nominatim and shopping snippets.</div>
     </div>
 
     <div class="panel" id="mapPanel">
@@ -126,10 +127,15 @@
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-// --------- State and DOM ---------
 const state = {
-  pos: null, map: null, markers: [], stores: [], unit: 'km', radius: 3000,
-  variants: [], currentVariant: null
+  pos: null,
+  map: null,
+  markers: [],
+  stores: [],
+  unit: 'km',
+  radius: 3000,
+  variants: [],
+  currentVariant: null
 };
 
 const itemInput = document.getElementById('itemInput');
@@ -156,163 +162,103 @@ initMapUI();
 wireEvents();
 
 function setStatus(s){ statusText.textContent = s; }
-function formatRadius(m){ return state.unit==='mi' ? (m/1609.344).toFixed(1)+' mi' : (m/1000).toFixed(1)+' km'; }
-function formatDistance(m){ return state.unit==='mi' ? (m/1609.344).toFixed(1)+' mi' : (m/1000).toFixed(2)+' km'; }
-function detectDefaultUnit(){ state.unit='km'; unitSelect.value=state.unit; unitLabel.textContent='units: km'; }
+function formatRadius(m){ return (m/1000).toFixed(1) + ' km'; }
+function detectDefaultUnit(){ if(navigator.language.startsWith('en-US')){ state.unit='mi'; unitLabel.textContent='units: mi'; } }
 
-// --------- Map Setup ---------
 function initMapUI(){
-  const mapDiv = document.getElementById('map');
-  state.map = L.map(mapDiv).setView([0,0],13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19, attribution:'© OpenStreetMap contributors'
-  }).addTo(state.map);
-
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(p=>{
-      state.pos = [p.coords.latitude,p.coords.longitude];
-      state.map.setView(state.pos,13);
-      L.circle(state.pos,{radius:50,color:'#22d3ee'}).addTo(state.map);
-    }, e=>{console.warn(e); setStatus('Location unavailable');});
-  }
+  state.map = L.map('map').setView([37.7749,-122.4194], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(state.map);
 }
 
-// --------- Event Wiring ---------
 function wireEvents(){
-  searchBtn.onclick = searchItems;
-  radiusRange.oninput = ()=>{
-    state.radius=parseInt(radiusRange.value);
-    radiusLabel.textContent=formatRadius(state.radius);
-    radiusNumber.value=state.radius;
-  };
-  radiusNumber.onchange = ()=>{
-    state.radius=parseInt(radiusNumber.value);
-    radiusLabel.textContent=formatRadius(state.radius);
-    radiusRange.value=state.radius;
-  };
-  settingsBtn.onclick = ()=>settingsModal.style.display='flex';
-  closeSettings.onclick = ()=>settingsModal.style.display='none';
-  saveSettings.onclick = ()=>{
-    state.unit=unitSelect.value;
+  searchBtn.onclick = () => runSearch(itemInput.value.trim());
+  radiusRange.oninput = () => { state.radius=parseInt(radiusRange.value); radiusLabel.textContent=formatRadius(state.radius); radiusNumber.value=state.radius; }
+  radiusNumber.oninput = () => { state.radius=parseInt(radiusNumber.value); radiusRange.value=state.radius; radiusLabel.textContent=formatRadius(state.radius); }
+  settingsBtn.onclick = () => { settingsModal.style.display='flex'; settingsModal.setAttribute('aria-hidden','false'); }
+  closeSettings.onclick = () => { settingsModal.style.display='none'; settingsModal.setAttribute('aria-hidden','true'); }
+  saveSettings.onclick = () => {
+    state.unit = unitSelect.value;
     document.body.className = themeSelect.value;
-    unitLabel.textContent='units: '+state.unit;
+    unitLabel.textContent = 'units: ' + state.unit;
     settingsModal.style.display='none';
-    radiusLabel.textContent=formatRadius(state.radius);
+    settingsModal.setAttribute('aria-hidden','true');
   };
 }
 
-// --------- Search & Variants ---------
-const COMMON_VARIANTS = {
-  milk:['milk','whole milk','skim milk','almond milk','oat milk'],
-  bread:['bread','white bread','wheat bread','baguette','bun'],
-  eggs:['eggs','chicken eggs','organic eggs','large eggs'],
-  batteries:['batteries','AA','AAA','9V','C batteries']
-};
+function clearResults(){
+  resultsEl.innerHTML='';
+  state.markers.forEach(m=>state.map.removeLayer(m));
+  state.markers=[];
+}
 
-function buildVariants(item){
-  state.variants = COMMON_VARIANTS[item.toLowerCase()] || [item];
-  state.currentVariant = state.variants[0];
-  variantArea.innerHTML = '';
+function renderVariantButtons(){
+  variantArea.innerHTML='';
   state.variants.forEach(v=>{
     const btn = document.createElement('div');
-    btn.textContent=v; btn.className='variant'+(v===state.currentVariant?' active':'');
-    btn.onclick=()=>{ state.currentVariant=v; updateVariantUI(); searchItems(); };
+    btn.textContent=v;
+    btn.className='variant'+(v===state.currentVariant?' active':'');
+    btn.onclick=()=>{
+      state.currentVariant=v;
+      renderVariantButtons();
+      runSearch(v);
+    };
     variantArea.appendChild(btn);
   });
 }
 
-function updateVariantUI(){
-  Array.from(variantArea.children).forEach(c=>{
-    c.className='variant'+(c.textContent===state.currentVariant?' active':'');
-  });
+function buildVariants(item){
+  // dynamically create variant array
+  // for now: single element
+  state.variants = [item];
+  state.currentVariant = item;
+  renderVariantButtons();
 }
 
-// --------- Core Search Functions ---------
-async function searchItems(){
-  const item = itemInput.value.trim();
-  if(!item) return;
+async function runSearch(query){
+  if(!query){ setStatus('Enter an item'); return; }
   setStatus('Searching...');
-  buildVariants(item);
+  clearResults();
+  buildVariants(query);
 
-  try{
-    const stores = await fetchNearbyStores(state.currentVariant);
-    state.stores = stores.map(s=>({...s,distance:haversineMeters(state.pos,s.pos)}))
-                         .filter(s=>s.distance<=state.radius)
-                         .sort((a,b)=>a.distance-b.distance);
+  if(!state.pos){
+    setStatus('Getting location...');
+    navigator.geolocation.getCurrentPosition(p=>{
+      state.pos=[p.coords.latitude,p.coords.longitude];
+      fetchStores(query);
+    },()=>{ setStatus('Location needed'); });
+  } else fetchStores(query);
+}
+
+async function fetchStores(query){
+  setStatus('Fetching stores...');
+  try {
+    const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json][timeout:25];node["shop"](around:${state.radius},${state.pos[0]},${state.pos[1]})["name"];out;`;
+    const resp = await fetch(overpassUrl);
+    const data = await resp.json();
+    state.stores = data.elements || [];
     renderResults();
-    renderMarkers();
-    setStatus(`${state.stores.length} stores found`);
-  }catch(e){
+  } catch(e){
     console.error(e);
     setStatus('Error fetching stores');
   }
 }
 
-// --------- Render Functions ---------
 function renderResults(){
   resultsEl.innerHTML='';
-  state.stores.forEach((s,i)=>{
+  state.stores.forEach(s=>{
     const card = document.createElement('div');
     card.className='storeCard';
-    card.innerHTML = `<h4>${s.name}</h4>
-      <div class="meta">${s.address || ''}</div>
-      <div class="meta">${formatDistance(s.distance)}</div>
-      ${s.price?'<div class="price">'+s.price+'</div>':''}
-      <div class="actions">
-        <a class="linkBtn" target="_blank" href="${s.link || '#'}">Open</a>
-      </div>`;
-    card.onclick=()=>{ highlightMarker(i); };
+    card.innerHTML=`<h4>${s.tags.name||'Store'}</h4>
+      <div class="meta">lat:${s.lat.toFixed(5)} lon:${s.lon.toFixed(5)}</div>
+      <div class="price">N/A</div>
+      <div class="actions"><a href="https://www.openstreetmap.org/?mlat=${s.lat}&mlon=${s.lon}#map=19/${s.lat}/${s.lon}" target="_blank" class="linkBtn">OSM Link</a></div>`;
     resultsEl.appendChild(card);
-    s.el=card;
+
+    const marker = L.marker([s.lat,s.lon]).addTo(state.map).bindPopup(s.tags.name||'Store');
+    state.markers.push(marker);
+    marker.on('click',()=>card.scrollIntoView({behavior:'smooth'}));
   });
-}
-
-function renderMarkers(){
-  state.markers.forEach(m=>state.map.removeLayer(m));
-  state.markers=[];
-  state.stores.forEach((s,i)=>{
-    const m = L.marker(s.pos).addTo(state.map).bindPopup(`<b>${s.name}</b><br>${formatDistance(s.distance)}`);
-    m.on('click',()=>{ highlightCard(i); });
-    state.markers.push(m);
-  });
-}
-
-function highlightMarker(idx){
-  const s = state.stores[idx];
-  if(!s) return;
-  s.el.scrollIntoView({behavior:'smooth',block:'center'});
-  s.el.classList.add('active');
-  setTimeout(()=>s.el.classList.remove('active'),2000);
-  state.map.setView(s.pos,15);
-}
-
-function highlightCard(idx){
-  highlightMarker(idx);
-}
-
-// --------- Helpers ---------
-function haversineMeters([lat1,lon1],[lat2,lon2]){
-  const R=6371000; const toRad=Math.PI/180;
-  const dLat=(lat2-lat1)*toRad; const dLon=(lon2-lon1)*toRad;
-  const a=Math.sin(dLat/2)**2+Math.cos(lat1*toRad)*Math.cos(lat2*toRad)*Math.sin(dLon/2)**2;
-  const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-  return R*c;
-}
-
-// --------- Fetch Nearby Stores ---------
-async function fetchNearbyStores(query){
-  const q = encodeURIComponent(query);
-  const overpass = `[out:json][timeout:25];(node["shop"](around:${state.radius},${state.pos[0]},${state.pos[1]})["name"];way["shop"](around:${state.radius},${state.pos[0]},${state.pos[1]})["name"];relation["shop"](around:${state.radius},${state.pos[0]},${state.pos[1]})["name"];);out center;`;
-  const resp = await fetch(`https://overpass-api.de/api/interpreter?data=${overpass}`);
-  const data = await resp.json();
-  const stores = data.elements.map(e=>{
-    const pos = e.type==='node'? [e.lat,e.lon] : [e.center.lat,e.center.lon];
-    const name = e.tags.name;
-    const price = e.tags['price_range'] || null;
-    const link = e.tags.website || e.tags.url ? e.tags.website || e.tags.url : `https://www.google.com/search?q=${encodeURIComponent(name)}`;
-    return {name,pos,address:e.tags['addr:full'] || '',price,link};
-  });
-  return stores;
+  setStatus(`Found ${state.stores.length} stores`);
 }
 </script>
 </body>
