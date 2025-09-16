@@ -36,9 +36,6 @@
   .linkBtn{display:inline-block;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.02);color:var(--accent);text-decoration:none;font-weight:700;cursor:pointer}
   .small{font-size:13px;color:var(--muted)}
   #map {height:72vh;border-radius:12px;overflow:hidden}
-  .variantList{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
-  .variant{padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.02);font-size:13px;color:var(--muted);cursor:pointer}
-  .variant.active{background:var(--accent);color:#042}
   .status{font-size:13px;color:var(--muted);margin-top:6px}
   .settingsModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:9999}
   .settingsCard{width:320px;background:var(--card);padding:14px;border-radius:10px}
@@ -83,13 +80,9 @@
         <div class="small" id="resultsHeader">Results</div>
         <div class="small" id="statusText">Ready</div>
       </div>
-
-      <div id="variantArea" class="variantList" aria-hidden="false"></div>
-
       <div id="results"></div>
-
       <div class="divider"></div>
-      <div class="small">If price parsing is blocked the app shows links you can open. Results use Overpass, Nominatim, and shopping snippets.</div>
+      <div class="small">Results use Overpass and Nominatim. Only exact matches to your search term are shown.</div>
     </div>
 
     <div class="panel" id="mapPanel">
@@ -129,17 +122,13 @@ const state = {
   pos: null,
   map: null,
   markers: [],
-  items: [],
-  radius: 3000,
-  variants: []
+  radius: 3000
 };
 
 // ---------------------- Map ----------------------
 function initMap(){
   state.map = L.map('map').setView([0,0],13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    maxZoom:19
-  }).addTo(state.map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(state.map);
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(p=>{
       state.pos=[p.coords.latitude,p.coords.longitude];
@@ -150,58 +139,25 @@ function initMap(){
 }
 initMap();
 
-// ---------------------- Variants (Datamuse API) ----------------------
-async function fetchVariants(term){
-  if(!term) return [];
-  try{
-    const resp = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(term)}&max=5`);
-    const data = await resp.json();
-    return data.map(w=>w.word).filter(w=>w.toLowerCase()!==term.toLowerCase());
-  }catch(e){
-    console.error("Error fetching variants:", e);
-    return [];
-  }
-}
-
-async function updateVariants(term){
-  state.variants = await fetchVariants(term);
-  renderVariants();
-}
-
-function renderVariants(){
-  const area = document.getElementById('variantArea');
-  area.innerHTML='';
-  state.variants.forEach(v=>{
-    const btn = document.createElement('div');
-    btn.className='variant';
-    btn.textContent=v;
-    btn.addEventListener('click',()=>{
-      state.items.push(v);
-      searchStores();
-    });
-    area.appendChild(btn);
-  });
-}
-
 // ---------------------- Overpass Query ----------------------
-function buildOverpassQuery(items,radius,pos){
-  const itemQuery = items.map(i=>`["name"~"${i}",i]`).join(';');
+function buildOverpassQuery(term,radius,pos){
+  // Only match name or brand exactly
   return `
     [out:json][timeout:25];
     (
-      node["shop"]${itemQuery}(around:${radius},${pos[0]},${pos[1]});
-      way["shop"]${itemQuery}(around:${radius},${pos[0]},${pos[1]});
-      relation["shop"]${itemQuery}(around:${radius},${pos[0]},${pos[1]});
+      node["shop"]["name"~"^${term}$",i](around:${radius},${pos[0]},${pos[1]});
+      node["shop"]["brand"~"^${term}$",i](around:${radius},${pos[0]},${pos[1]});
+      way["shop"]["name"~"^${term}$",i](around:${radius},${pos[0]},${pos[1]});
+      way["shop"]["brand"~"^${term}$",i](around:${radius},${pos[0]},${pos[1]});
+      relation["shop"]["name"~"^${term}$",i](around:${radius},${pos[0]},${pos[1]});
+      relation["shop"]["brand"~"^${term}$",i](around:${radius},${pos[0]},${pos[1]});
     );
     out center;
   `;
 }
 
 async function fetchOverpass(query){
-  const resp = await fetch('https://overpass-api.de/api/interpreter',{
-    method:'POST',
-    body:query
-  });
+  const resp = await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:query});
   const data = await resp.json();
   return data.elements;
 }
@@ -211,11 +167,8 @@ async function searchStores(){
   if(!state.pos){ alert("No location yet."); return; }
   const term = document.getElementById('itemInput').value.trim();
   if(!term) return;
-  state.items=[term];
 
-  await updateVariants(term);
-
-  const query = buildOverpassQuery(state.items,state.radius,state.pos);
+  const query = buildOverpassQuery(term,state.radius,state.pos);
   document.getElementById('statusText').textContent='Searching...';
   try{
     const stores = await fetchOverpass(query);
@@ -237,13 +190,16 @@ function showStores(stores){
     const card = document.createElement('div');
     card.className='storeCard';
     const name = s.tags && s.tags.name ? s.tags.name : 'Unnamed';
-    card.innerHTML=`<h4>${name}</h4><div class="meta">${s.tags? s.tags.shop || 'Shop': ''}</div>`;
+    card.innerHTML=`<h4>${name}</h4><div class="meta">${s.tags? s.tags.shop || '' : ''}</div>`;
     results.appendChild(card);
 
-    const marker = L.marker([s.lat || s.center?.lat, s.lon || s.center?.lon]).addTo(state.map).bindPopup(name);
-    state.markers.push(marker);
-
-    card.addEventListener('click',()=>{ marker.openPopup(); });
+    const lat = s.lat || s.center?.lat;
+    const lon = s.lon || s.center?.lon;
+    if(lat && lon){
+      const marker = L.marker([lat,lon]).addTo(state.map).bindPopup(name);
+      state.markers.push(marker);
+      card.addEventListener('click',()=>{ marker.openPopup(); });
+    }
   });
 
   document.getElementById('statusText').textContent=`Found ${stores.length} stores`;
@@ -271,6 +227,6 @@ document.getElementById('saveSettings').addEventListener('click',()=>{
   settingsModal.style.display='none';
 });
 </script>
-<footer class="note">Local Price Finder • Uses Overpass, Nominatim, and Datamuse API • Client-only</footer>
+<footer class="note">Local Price Finder • Uses Overpass & Nominatim • Client-only</footer>
 </body>
 </html>
