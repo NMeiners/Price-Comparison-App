@@ -1,2 +1,51 @@
 ChatGPT prompts:
-- 
+- I want you to create a single page web app that gets the user's location and searches nearby stores for specific items so that the user can compare prices. This will be deployed using github pages and will have no additional resources, so it will need to work purely from the browser. Keep asking me clarifying questions until you have enough information to create the web app.
+- No data source will be provided. The web app will have to perform its own searches while using the user's location to narrow results and should include any results it manages to find. It will need the user's location, so it should ask. The app should be able to handle a variety of searches. The user should be able to have different sorting formats. I will leave UI decisions and deployment choices up to you as long as it works entirely from github using github pages. Is there anything else you need to know?
+- For the first one, let's focus on the no keys option as I don't have any API keys I can provide you. If you can access a public API, great. For the second one, let's focus on just using text searches for now. For sorting, do what makes sense based on the purpose of the app and the information that can be acquired.
+- If you can get the app to display results as close to how it would appear in the source site, let's go with that. It should be able to support both desktop and mobile layouts, but let's focus on getting it to work before we worry about expanding functionality.
+- Let's focus on getting it working properly and improving the UI for now. Currently it does not come up with any results. The user may input non-specific searches, so it will need a way to find related items. For example, the user might search for "milk" and the app will need to return results for 2% and whole milk. Also, meters is not a very user-friendly measurement. Let's have it use kilometers or miles. If you can improve the appearance to make it easier to view, please do so.
+- The goal of the app is to shop via local physical stores, so online shopping is out of scope for now. If you can implement google shopping and bing shopping search parsing to improve search results, please do so. Do what you feel works best to improve search results.
+- Do what you feel works best given the purpose of the app. If you can find a way to get the best of both worlds, even better.
+- Can we try adding in the actual map when displaying the results? I think it should have the results listed in a bar while also showing the results at pins on store locations on a map. Also, could you clean up some of the displayed text to make it more professional or "human" by cutting out unnecessary text?
+- Do what you think would be more user-friendly and better organized. Go ahead and make the changes to the code.
+- Yes. While you are making that change, please make any updates you think are necessary to improve user experience.
+- This update now fails to get any results. It was at least finding something before we added the map. Let's start with fixing that. Also, let's clean up the UI a bit. Can you create a comprehensive settings menu where the user can do things like change their desired units and switch between dark and light mode? Also, can you make it so that the "search" button also activates when enter is pressed?
+- Ok, the search is still failing to find results, so you will need to look into fixing it. Maybe try adding more backup search methods for when it fails? Or try using different resources to search? Also, the settings menu does not work. It grays out everything except the map, but the menu does not show up.
+- If you can do both at the same time, that would be preferred, but let's focus on getting the search function to work first.
+- Always pull item prices when possible.
+- Let's focus on completeness.
+- Let's have it start fresh for now.
+- Go ahead and give me the full revised single-page app.
+- This is working much better now. Results are showing up, but I noticed some irrelevant results show up as well. For example, when I searched for milk, car dealerships showed up. Searching for bread brought up car repair. Is there a way for you to improve the search pipeline to improve the gathered results?
+- I would like to avoid hard-coding it if possible. What if a user is looking into tires? Forcefully blocking everything related to cars would limit complete functionality. Do you have any other suggestions?
+- For now, let's do the automatic context-based filtering. We can add in the user-controlled filtering when we start looking at the sorting menu.
+- Go ahead and update the code now. Feel free to make any changes that you feel would improve the overall functionality of the entire web app.
+- Please make the update to include price parsing.
+- Can you set it up to show the lowest available price, but include some sort of indication that other prices were found? Something like a highlighted price with a clickable drop down tab to show the other prices?
+- Let's focus on accuracy for this part.
+- This update seems to have broken the search engine. Can you look into fixing it? Make sure to review the version that worked when fixing this version.
+- The search engine still isn't working. I am currently using Denver, CO and words like milk, bread, and tires to test the issues we have discussed so far. Try to find any possible ways to improve, optimize, and fix the search engine and update the index.html file.
+- It seems to be getting stuck searching. I am now getting the following error: Uncaught (in promise) ReferenceError: haversineMeters is not defined at Price-Comparison-App/:490:60 at Array.forEach (<anonymous>) at doSearch (Price-Comparison-App/:490:11)
+- Please go ahead and add the automatic relevance filter. Also, do one final double check for any potential issues before I make this update.
+- Before I make this update, I noticed that the default location is set to Denver. Please make sure the app is generalized so it works well for any user, not just me. Make sure to remove anything that was added for testing purposes or as a place holder. The goal is to produce a fully functioning app each time until we get one that works well.
+- Go ahead and replace the demo random pricing. Make sure everything is functioning and set up in a way that does not suggest this is a demo or test. It should feel like a final product every time so I can see what might need changing.
+- I think we are taking steps backwards here. I noticed certain components were removed like the settings menu. The search engine is also not working again. Please review previous versions and rewrite index.html to include the most advanced and functional parts of all versions.
+- Please add the price parsing. Also, double check the file to make sure everything is fully functional.
+- I want you to make sure it is using all available resources you can to ensure accurate and complete searches along with the most accurate pricing it can find.
+- Go ahead and rewrite index.html.
+- Go ahead and implement any changes you feel are necessary to improve functionality, accuracy, and user experience.
+- I feel like we are failing to make further improvements. I am going to give you the index.html from the main branch which is currently the best version. Use that as a basis and make any updates that are necessary to improve the functionality of the web app and search engine:
+- go ahead and give me the updated index.html.
+- I noticed you are hardcoding variants for searches. This will not work if the user searches for something outside of those specific searches. The search engine needs to work for any searched item. Is there a way you can change it to generalize it?
+- Go ahead and do what you think is most functional and gives the best results.
+- If there is an available public api you can use to find automatically find variants, let's do that. I also noticed that the search engine is currently just returning any stores it finds in the area, not just ones that have the searched item. Also, the map no longer adjusts to show the user's location and the "enter" key no longer activates the "search" button. Can you please fix these things while you look into the variants solution?
+- Let's take a dynamic approach. It should search using the original search and display a limited list of variants the user can click to add to the search.
+- go ahead and update the file.
+- Go ahead and implement that filter. Be careful to make sure nothing breaks.
+- Please give me the fully updated index.html.
+- I thought you already made that change? If not, please update it to use a public api rather than hardcoding variants.
+- Please do.
+- the search engine is broken again. Please look into fixing it. Also, the variants provided by the api don't seem very useful, so let's remove it for now and only use the user's exact searched items without looking for variants. Can you set it up so it finds all results that include the user's exact input search?
+- Please do. Also, the search engine is still not working correctly. Please look into that and make sure it is searching for stores that have the item the user searches for.
+- Go ahead and update index.html. Make sure it is still using the robust search engine that was working correctly before and make any changes to ensure it is properly searching for items and products.
+- go ahead and make those updates.
