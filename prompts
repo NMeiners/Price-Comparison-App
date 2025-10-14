@@ -49,3 +49,6 @@ ChatGPT prompts:
 - Please do. Also, the search engine is still not working correctly. Please look into that and make sure it is searching for stores that have the item the user searches for.
 - Go ahead and update index.html. Make sure it is still using the robust search engine that was working correctly before and make any changes to ensure it is properly searching for items and products.
 - go ahead and make those updates.
+- Let's update it to use fuzzy matching instead of its current approach to wider searches. Also, if you could review the existing code to structure and clean it up, that would be great.
+- Do what you think would provide the best results.
+- 
