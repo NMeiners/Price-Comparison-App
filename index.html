@@ -1,232 +1,604 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Local Price Finder</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <style>
-:root {
-  --bg: #f8f9fa;
-  --fg: #111;
-  --accent: #0066cc;
-}
-body.dark {
-  --bg: #121212;
-  --fg: #f0f0f0;
-  --accent: #3399ff;
-}
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, sans-serif;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-}
-header {
-  padding: .5em;
-  display: flex;
-  gap: .5em;
-  align-items: center;
-  background: var(--accent);
-  color: white;
-}
-header input {
-  flex: 1;
-  padding: .4em;
-  border: none;
-  border-radius: 4px;
-}
-header button {
-  padding: .4em .8em;
-  border: none;
-  background: white;
-  color: var(--accent);
-  border-radius: 4px;
-  cursor: pointer;
-}
-#map { flex: 1; }
-#results {
-  max-height: 40vh;
-  overflow-y: auto;
-  background: var(--bg);
-  border-top: 1px solid #ccc;
-  padding: .5em;
-}
-.result {
-  border-bottom: 1px solid #ccc;
-  padding: .3em 0;
-}
-.settings {
-  position: fixed;
-  right: 1em;
-  top: 1em;
-  background: var(--bg);
-  border: 1px solid #ccc;
-  padding: .5em;
-  border-radius: 6px;
-  display: none;
-}
-.settings label { display: block; margin-top: .3em; }
-.toggle {
-  position: absolute;
-  right: 1em;
-  top: .5em;
-  background: white;
-  color: var(--accent);
-  border: none;
-  border-radius: 4px;
-  padding: .3em .6em;
-  cursor: pointer;
-}
+  :root{
+    --bg:#0b1220; --panel:#07121a; --card:#0f1724; --muted:#9fb0c0; --accent:#22d3ee; --text:#e6f6fb;
+    --light-bg:#f6f8fb; --light-panel:#ffffff; --light-text:#111827; --light-muted:#556170; --light-accent:#2563eb;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  body.light { background:var(--light-bg); color:var(--light-text); }
+  body.light .topbar, body.light .searchbar { background:linear-gradient(90deg,#fff,#f5f7fb); color:var(--light-text) }
+  .app{max-width:1200px;margin:12px auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+  .topbar{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:linear-gradient(90deg,#06202a,#04202b);box-shadow:0 8px 24px rgba(2,6,23,0.6)}
+  body.light .topbar{background:linear-gradient(90deg,#fff,#f7fbff);box-shadow:none}
+  .brand{font-weight:700;font-size:18px}
+  .sub{font-size:13px;color:var(--muted)}
+  .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .iconBtn{background:transparent;border:0;color:inherit;cursor:pointer;font-size:16px;padding:8px;border-radius:8px}
+  .searchbar{display:flex;gap:8px;padding:10px;border-radius:10px;background:var(--panel);align-items:center}
+  .searchbar input[type="search"]{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:15px;outline:none}
+  .btn{background:var(--accent);border:0;padding:10px 12px;border-radius:8px;color:#042;font-weight:700;cursor:pointer}
+  body.light .btn{background:var(--light-accent); color:#fff}
+  .layout{display:grid;grid-template-columns:380px 1fr;gap:12px;min-height:60vh}
+  @media(max-width:900px){ .layout{grid-template-columns:1fr;grid-auto-rows:min-content} }
+  .panel{background:var(--card);padding:12px;border-radius:12px;overflow:auto}
+  body.light .panel{background:var(--light-panel)}
+  #results{display:flex;flex-direction:column;gap:8px}
+  .storeCard{padding:10px;border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+  .storeCard h4{margin:0;font-size:15px}
+  .meta{font-size:13px;color:var(--muted);margin-top:4px}
+  .actions{margin-left:auto;display:flex;flex-direction:column;gap:8px}
+  .linkBtn{display:inline-block;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.02);color:var(--accent);text-decoration:none;font-weight:700;cursor:pointer}
+  .small{font-size:13px;color:var(--muted)}
+  #map {height:72vh;border-radius:12px;overflow:hidden}
+  .status{font-size:13px;color:var(--muted);margin-top:6px}
+  .settingsModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:9999}
+  .settingsCard{width:320px;background:var(--card);padding:14px;border-radius:10px}
+  body.light .settingsCard{background:var(--light-panel)}
+  .row{display:flex;gap:8px;align-items:center}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  select,input[type="range"]{width:100%}
+  .divider{height:1px;background:rgba(255,255,255,0.03);margin:8px 0}
+  a.smallLink{color:var(--accent);text-decoration:none;font-weight:700}
+  .storeCard.active{outline:2px solid rgba(34,211,238,0.12);background:linear-gradient(90deg,rgba(34,211,238,0.03),transparent)}
+  .price{font-weight:800;color:var(--accent);margin-top:6px}
+  body.light .price{color:var(--light-accent)}
+  footer.note{font-size:12px;color:var(--muted);margin-top:8px}
 </style>
 </head>
 <body>
-<header>
-  <input id="search" type="text" placeholder="Search for a product (e.g., milk, bread, tires)" />
-  <button id="go">Search</button>
-  <button class="toggle" id="settingsBtn">⚙</button>
-</header>
-<div id="map"></div>
-<div id="results"></div>
+<div class="app">
+  <div class="topbar">
+    <div>
+      <div class="brand">Local Price Finder</div>
+      <div class="sub">Find items near you in local stores. Client-only. No keys required.</div>
+    </div>
+    <div class="controls">
+      <div class="small" id="unitLabel">units: km</div>
+      <button class="iconBtn" id="settingsBtn" title="Settings">⚙️</button>
+    </div>
+  </div>
 
-<div class="settings" id="settingsMenu">
-  <strong>Settings</strong>
-  <label>Units:
-    <select id="units">
-      <option value="miles">Miles</option>
-      <option value="km">Kilometers</option>
-    </select>
-  </label>
-  <label>Search Radius (miles):
-    <input type="number" id="radius" value="5" min="1" max="50" />
-  </label>
-  <label>
-    <input type="checkbox" id="themeToggle"> Dark Mode
-  </label>
-  <button id="closeSettings">Close</button>
+  <div class="searchbar panel">
+    <input id="itemInput" type="search" placeholder="Search items (e.g., milk, batteries, bread)" />
+    <button id="searchBtn" class="btn">Search</button>
+    <div style="width:12px"></div>
+    <div class="small">Radius:
+      <input id="radiusRange" type="range" min="500" max="20000" step="250" value="3000" style="vertical-align:middle">
+      <span id="radiusLabel">3.0 km</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel" id="leftPanel">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div class="small" id="resultsHeader">Results</div>
+        <div class="small" id="statusText">Ready</div>
+      </div>
+
+      <div id="results"></div>
+
+      <div class="divider"></div>
+      <div class="small">If price parsing is blocked the app shows external links. Results use Overpass, Nominatim and shopping snippets where available.</div>
+    </div>
+
+    <div class="panel" id="mapPanel">
+      <div id="map"></div>
+    </div>
+  </div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Settings modal -->
+<div id="settingsModal" class="settingsModal" aria-hidden="true">
+  <div class="settingsCard">
+    <h3 style="margin:0 0 8px 0">Settings</h3>
+    <label>Units</label>
+    <select id="unitSelect">
+      <option value="km">Kilometers</option>
+      <option value="mi">Miles</option>
+    </select>
+
+    <label style="margin-top:10px">Theme</label>
+    <select id="themeSelect">
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+    </select>
+
+    <label style="margin-top:10px">Max shop radius (meters)</label>
+    <input id="radiusNumber" type="number" min="500" max="20000" step="100" value="3000">
+
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+      <button id="closeSettings" class="btn" style="background:rgba(255,255,255,0.06);color:var(--text)">Close</button>
+      <button id="saveSettings" class="btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script>
-// --- helpers ---
-const el = id => document.getElementById(id);
-function deg2rad(d){return d*Math.PI/180;}
-function distanceMiles(a,b){
-  const R=3958.8;
-  const dLat=deg2rad(b.lat-a.lat);
-  const dLon=deg2rad(b.lon-a.lon);
-  const aa=Math.sin(dLat/2)**2+Math.cos(deg2rad(a.lat))*Math.cos(deg2rad(b.lat))*Math.sin(dLon/2)**2;
-  return 2*R*Math.atan2(Math.sqrt(aa),Math.sqrt(1-aa));
-}
-function distanceKm(a,b){return distanceMiles(a,b)*1.60934;}
-function fuzzyIncludes(hay,needle){
-  hay=hay.toLowerCase(); needle=needle.toLowerCase();
-  return hay.includes(needle) || needle.split(/\s+/).some(w=>hay.includes(w));
-}
-function estimatePrice(item){
-  const base={
-    milk:3.79,bread:2.49,tires:120,coffee:9.99,eggs:4.49,
-    cheese:6.5,apple:1.99,banana:0.79
-  };
-  let key=Object.keys(base).find(k=>fuzzyIncludes(item,k));
-  if(!key) return (Math.random()*50+1).toFixed(2);
-  const varFactor=1+((Math.random()-.5)/5);
-  return (base[key]*varFactor).toFixed(2);
-}
+// State and DOM
+const state = { pos: null, map: null, markers: [], stores: [], unit: 'km', radius: 3000 };
+const itemInput = document.getElementById('itemInput');
+const searchBtn = document.getElementById('searchBtn');
+const radiusRange = document.getElementById('radiusRange');
+const radiusLabel = document.getElementById('radiusLabel');
+const resultsEl = document.getElementById('results');
+const statusText = document.getElementById('statusText');
+const unitLabel = document.getElementById('unitLabel');
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const unitSelect = document.getElementById('unitSelect');
+const themeSelect = document.getElementById('themeSelect');
+const radiusNumber = document.getElementById('radiusNumber');
+const closeSettings = document.getElementById('closeSettings');
+const saveSettings = document.getElementById('saveSettings');
 
-// --- map init ---
-let map=L.map('map').setView([39.5,-98.35],4);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-let markers=[];
+// Init UI
+radiusRange.value = state.radius;
+radiusNumber.value = state.radius;
+radiusLabel.textContent = formatRadius(state.radius);
+unitSelect.value = state.unit;
+unitLabel.textContent = 'units: ' + (state.unit==='mi'?'mi':'km');
+initMapUI();
+wireEvents();
+setStatus('Ready. Allow location and search for items.');
 
-function clearMarkers(){
-  markers.forEach(m=>m.remove());
-  markers=[];
-}
+// Helpers
+function setStatus(s){ statusText.textContent = s; }
+function formatRadius(m){ return state.unit==='mi' ? (m/1609.344).toFixed(1)+' mi' : (m/1000).toFixed(1)+' km'; }
+function formatDistance(meters){ if(state.unit==='mi') return (meters/1609.344).toFixed(1)+' mi'; return (meters/1000).toFixed(2)+' km'; }
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-async function doSearch(){
-  const term=el('search').value.trim();
-  if(!term){alert("Enter a product name.");return;}
-  el('results').innerHTML="Searching...";
-  clearMarkers();
-  // get location
-  let pos;
-  try{
-    pos=await new Promise((res,rej)=>{
-      navigator.geolocation.getCurrentPosition(p=>res(p.coords),rej,{timeout:8000});
-    });
-  }catch{ // fallback to map center
-    pos={latitude:39.7392,longitude:-104.9903};
+// Map
+function initMapUI(){
+  const mapDiv = document.getElementById('map');
+  state.map = L.map(mapDiv).setView([39.5,-98.35], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(state.map);
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(p=>{
+      state.pos = { lat: p.coords.latitude, lon: p.coords.longitude };
+      state.map.setView([state.pos.lat, state.pos.lon], 13);
+      L.circleMarker([state.pos.lat, state.pos.lon], {radius:8, color:'#22d3ee', fill:true, fillColor:'#22d3ee'}).addTo(state.map).bindPopup('You are here');
+    }, err=>{ console.warn('geo',err); setStatus('Location not available. Allow location for nearby stores.'); }, { enableHighAccuracy:true, timeout:10000 });
+  } else {
+    setStatus('Geolocation not supported.');
   }
-  const radiusMiles=parseFloat(el('radius').value)||5;
-  const radiusKm=radiusMiles*1.60934;
-  const units=el('units').value;
-  map.setView([pos.latitude,pos.longitude],12);
+}
 
-  // Overpass query for nearby stores
-  const query=`[out:json][timeout:25];
-  (
-    node["shop"](around:${radiusKm*1000},${pos.latitude},${pos.longitude});
-    node["amenity"="supermarket"](around:${radiusKm*1000},${pos.latitude},${pos.longitude});
-    node["amenity"="convenience"](around:${radiusKm*1000},${pos.latitude},${pos.longitude});
-  );out body;`;
+// Events
+function wireEvents(){
+  searchBtn.addEventListener('click', onSearch);
+  itemInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') onSearch(); });
+  radiusRange.addEventListener('input', ()=>{ state.radius = Number(radiusRange.value); radiusNumber.value = state.radius; radiusLabel.textContent = formatRadius(state.radius); });
+  radiusNumber.addEventListener('change', ()=>{ state.radius = Number(radiusNumber.value || 3000); radiusRange.value = state.radius; radiusLabel.textContent = formatRadius(state.radius); });
+  settingsBtn.addEventListener('click', ()=>{ settingsModal.style.display='flex'; settingsModal.setAttribute('aria-hidden','false'); });
+  closeSettings.addEventListener('click', ()=>closeSettingsModal());
+  saveSettings.addEventListener('click', ()=>{ applySettings(); closeSettingsModal(); });
+  unitSelect.addEventListener('change', ()=>{ state.unit = unitSelect.value; unitLabel.textContent = 'units: ' + (state.unit==='mi' ? 'mi' : 'km'); refreshDistances(); radiusLabel.textContent = formatRadius(state.radius); });
+  themeSelect.addEventListener('change', ()=>{ document.body.classList.toggle('light', themeSelect.value==='light'); });
+  settingsModal.addEventListener('click', (e)=>{ if(e.target === settingsModal) closeSettingsModal(); });
+}
+function closeSettingsModal(){ settingsModal.style.display='none'; settingsModal.setAttribute('aria-hidden','true'); }
+function applySettings(){ state.radius = Number(radiusNumber.value || state.radius); radiusRange.value = state.radius; radiusLabel.textContent = formatRadius(state.radius); unitLabel.textContent = 'units: ' + (state.unit==='mi' ? 'mi' : 'km'); refreshDistances(); }
 
-  let data;
-  try{
-    const res=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:query});
-    data=await res.json();
-  }catch(e){
-    el('results').innerHTML="Search failed.";
-    console.error(e);
+// UI helpers
+function clearResultsUI(){
+  resultsEl.innerHTML = '';
+  state.markers.forEach(m=> state.map.removeLayer(m));
+  state.markers = [];
+}
+function addResultCard(store){
+  const div = document.createElement('div');
+  div.className = 'storeCard';
+  div.dataset.id = store._id || '';
+  const title = document.createElement('div');
+  title.innerHTML = `<h4>${escapeHtml(store.name)}</h4>
+    <div class="meta">${escapeHtml(store.tags && (store.tags.shop || store.tags.amenity || 'store'))} • ${store.addr || ''}</div>`;
+  const right = document.createElement('div');
+  right.className = 'actions';
+  if(store.price){
+    const p = document.createElement('div'); p.className='price'; p.textContent = `${store.price}`;
+    right.appendChild(p);
+  } else {
+    // Shouldn't happen: we only include priced stores
+    const p = document.createElement('div'); p.className='small'; p.textContent = 'Price not found';
+    right.appendChild(p);
+  }
+  const openBtn = document.createElement('a');
+  openBtn.className = 'linkBtn';
+  openBtn.textContent = 'Open link';
+  openBtn.href = store.searchUrl || store.sourceUrl || '#';
+  openBtn.target = '_blank';
+  openBtn.rel = 'noopener';
+  right.appendChild(openBtn);
+
+  const mapBtn = document.createElement('a');
+  mapBtn.className = 'linkBtn';
+  mapBtn.textContent = 'View on map';
+  mapBtn.onclick = (e)=>{ state.map.setView([store.lat, store.lon], 16); if(store._marker) store._marker.openPopup(); };
+  right.appendChild(mapBtn);
+
+  div.appendChild(title);
+  div.appendChild(right);
+
+  const distLine = document.createElement('div');
+  distLine.className = 'small';
+  distLine.style.marginTop='6px';
+  distLine.textContent = store.distanceDisplay || '';
+  div.appendChild(distLine);
+
+  div.addEventListener('click', ()=>{ highlightCard(div, store); });
+
+  resultsEl.appendChild(div);
+
+  // add marker
+  const marker = L.marker([store.lat, store.lon]).addTo(state.map)
+    .bindPopup(`<strong>${escapeHtml(store.name)}</strong><br>${store.distanceDisplay || ''}<br>${store.price?('<strong>'+store.price+'</strong>'):''}`);
+  store._marker = marker;
+  state.markers.push(marker);
+  marker.on('click', ()=>{ highlightMarker(store, div); });
+}
+function highlightCard(div, store){
+  document.querySelectorAll('.storeCard.active').forEach(e=>e.classList.remove('active'));
+  div.classList.add('active');
+  if(store._marker) markerOpen(store._marker);
+  state.map.setView([store.lat, store.lon], 16);
+}
+function highlightMarker(store, div){
+  document.querySelectorAll('.storeCard.active').forEach(e=>e.classList.remove('active'));
+  if(div) div.classList.add('active');
+  if(store._marker) markerOpen(store._marker);
+}
+function markerOpen(marker){ if(marker && marker.openPopup) marker.openPopup(); }
+function refreshDistances(){
+  document.querySelectorAll('.storeCard').forEach(card=>{
+    const id = card.dataset.id;
+    const store = state.stores.find(s=> (s._id||'') === id);
+    if(store){
+      const dd = formatDistance(store.distanceMeters || 0);
+      card.querySelector('.small') && (card.querySelector('.small').textContent = dd);
+    }
+  });
+}
+
+// Haversine
+function haversineMeters(a,b){
+  const R=6371000; const toRad = x=>x*Math.PI/180;
+  const dLat = toRad(b.lat-a.lat), dLon=toRad(b.lon-a.lon);
+  const la = toRad(a.lat), lb=toRad(b.lat);
+  const s = Math.sin(dLat/2)**2 + Math.cos(la)*Math.cos(lb)*Math.sin(dLon/2)**2;
+  return R*2*Math.asin(Math.sqrt(s));
+}
+
+// ---------------------- Search pipeline ----------------------
+
+// Main search
+async function onSearch(){
+  clearResultsUI();
+  setStatus('Searching...');
+  const q = (itemInput.value || '').trim();
+  if(!q){
+    setStatus('Enter a search term.');
     return;
   }
 
-  const user={lat:pos.latitude,lon:pos.longitude};
-  const stores=data.elements.filter(n=>n.tags && (n.tags.name||n.tags.brand));
+  // ensure location
+  if(!state.pos){
+    try {
+      await getLocationOnce();
+    } catch(e){
+      setStatus('Location required.');
+      return;
+    }
+  }
 
-  // relevance filtering (exclude non-retail)
-  const exclude=["auto","car","moto","repair","dealer","church","school","bank","atm"];
-  const filtered=stores.filter(s=>{
-    const n=(s.tags.name||"").toLowerCase()+" "+(s.tags.shop||"");
-    return !exclude.some(x=>n.includes(x));
+  // Overpass: retrieve nearby candidate shops
+  const overpassStores = await overpassNearby(state.pos.lat, state.pos.lon, state.radius);
+  setStatus(`Fetched ${overpassStores.length} local places. Filtering...`);
+
+  // filter candidate stores by fuzzy token match
+  let candidates = filterStoresByQuery(overpassStores, q);
+
+  // if none, fallback to nominatim
+  if(candidates.length === 0){
+    setStatus('No close matches. Expanding search via Nominatim...');
+    const nomStores = await nominatimFallback(q, state.pos.lat, state.pos.lon, state.radius);
+    candidates = filterStoresByQuery(nomStores, q);
+  }
+
+  // If still empty, broaden
+  if(candidates.length === 0){
+    setStatus('No matches in area. Fetching broader set...');
+    const broad = await overpassNearbyBroad(state.pos.lat, state.pos.lon, Math.min(state.radius*2,20000));
+    candidates = filterStoresByQuery(broad, q);
+  }
+
+  if(candidates.length === 0){
+    setStatus('No candidate stores found.');
+    renderFallbackLinks(q);
+    return;
+  }
+
+  // compute distances
+  candidates.forEach((s, idx)=>{ s.distanceMeters = haversineMeters(state.pos, {lat:s.lat, lon:s.lon}); s.distanceDisplay = formatDistance(s.distanceMeters); s._id = `${s.id}_${idx}`; });
+
+  // Attempt to parse prices for candidates (best-effort). Only keep stores where a price was found.
+  setStatus(`Checking ${candidates.length} candidate stores for prices (best-effort)...`);
+  const priced = [];
+  for(let i=0;i<candidates.length;i++){
+    const s = candidates[i];
+    try{
+      const parsed = await attemptPriceParse(q, s);
+      if(parsed && parsed.ok && parsed.price){
+        s.price = parsed.priceDisplay || parsed.price;
+        s.priceSource = parsed.source || 'snippet';
+        s.searchUrl = parsed.source || s.searchUrl;
+        priced.push(s);
+      }
+    }catch(err){
+      // ignore parsing errors
+    }
+    // polite delay to avoid rapid-fire fetches
+    await sleep(300);
+  }
+
+  // If shopping snippets turned up price-only references (not tied to store), we can present them separately if desired.
+  // For this version we require store-associated prices. So skip shopping-only entries.
+
+  if(priced.length === 0){
+    setStatus('No priced results found. Showing external search links.');
+    renderFallbackLinks(q);
+    return;
+  }
+
+  // Sort by price numeric then distance
+  priced.forEach(s=>{
+    // try to parse numeric price value for sorting
+    const p = parseFloat((s.price||'').replace(/[^0-9.]/g,''));
+    s._priceVal = isNaN(p)?Number.POSITIVE_INFINITY:p;
   });
+  priced.sort((a,b)=> (a._priceVal - b._priceVal) || (a.distanceMeters - b.distanceMeters));
 
-  const results=filtered.map(s=>{
-    const name=s.tags.name||s.tags.brand||"Unnamed";
-    const shopType=s.tags.shop||s.tags.amenity||"store";
-    const dist=units==="miles"?distanceMiles(user,{lat:s.lat,lon:s.lon}):distanceKm(user,{lat:s.lat,lon:s.lon});
-    return {name,shopType,lat:s.lat,lon:s.lon,dist,price:estimatePrice(term)};
-  }).sort((a,b)=>a.dist-b.dist);
+  state.stores = priced;
+  setStatus(`Showing ${state.stores.length} priced result(s).`);
+  renderAllResults();
+}
 
-  if(!results.length){el('results').innerHTML="No relevant stores found.";return;}
+// Overpass: nodes/ways/relations with shop or supermarket amenity
+async function overpassNearby(lat, lon, radius){
+  try{
+    const q = `[out:json][timeout:25];
+    (
+      node(around:${radius},${lat},${lon})[shop];
+      way(around:${radius},${lat},${lon})[shop];
+      relation(around:${radius},${lat},${lon})[shop];
+      node(around:${radius},${lat},${lon})[amenity=supermarket];
+      way(around:${radius},${lat},${lon})[amenity=supermarket];
+      relation(around:${radius},${lat},${lon})[amenity=supermarket];
+      node(around:${radius},${lat},${lon})[shop~"^(supermarket|convenience|grocery|bakery|chemist|drugstore|clothes|electronics)$"];
+    );
+    out center tags;`;
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:q});
+    if(!resp.ok) return [];
+    const j = await resp.json();
+    return j.elements.map(e=>{
+      const center = e.type==='node' ? {lat:e.lat, lon:e.lon} : (e.center || {lat:e.lat, lon:e.lon});
+      return { id: e.id, type: e.type, name: (e.tags && (e.tags.name || e.tags.brand))||'Unnamed', tags: e.tags||{}, lat:center.lat, lon:center.lon, addr: (e.tags && (e.tags['addr:street']||e.tags['addr:housenumber']))||'' };
+    });
+  }catch(err){ console.warn('overpass error', err); return []; }
+}
 
-  const resDiv=el('results');
-  resDiv.innerHTML="";
-  results.forEach(r=>{
-    const div=document.createElement("div");
-    div.className="result";
-    div.innerHTML=`<strong>${r.name}</strong><br>
-    ${r.shopType} • ${r.dist.toFixed(1)} ${units}<br>
-    ${term}: $${r.price}`;
-    resDiv.appendChild(div);
-    const m=L.marker([r.lat,r.lon]).addTo(map)
-      .bindPopup(`<b>${r.name}</b><br>${term}: $${r.price}<br>${r.dist.toFixed(1)} ${units}`);
-    markers.push(m);
+// broader Overpass
+async function overpassNearbyBroad(lat, lon, radius){
+  try{
+    const q = `[out:json][timeout:25];
+    (
+      node(around:${radius},${lat},${lon});
+      way(around:${radius},${lat},${lon});
+      relation(around:${radius},${lat},${lon});
+    );
+    out center tags;`;
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {method:'POST', body:q});
+    if(!resp.ok) return [];
+    const j = await resp.json();
+    return j.elements.map(e=>{
+      const center = e.type==='node' ? {lat:e.lat, lon:e.lon} : (e.center || {lat:e.lat, lon:e.lon});
+      return { id: e.id, type: e.type, name: (e.tags && (e.tags.name || e.tags.brand))||'Unnamed', tags: e.tags||{}, lat:center.lat, lon:center.lon, addr: (e.tags && (e.tags['addr:street']||e.tags['addr:housenumber']))||'' };
+    });
+  }catch(err){ console.warn('overpass broad error', err); return []; }
+}
+
+// Nominatim fallback
+async function nominatimFallback(query, lat, lon, radius){
+  try{
+    const q = encodeURIComponent(query + ' near ' + lat + ',' + lon);
+    const url = `https://nominatim.openstreetmap.org/search.php?q=${q}&format=jsonv2&limit=20`;
+    const resp = await fetch(url);
+    if(!resp.ok) return [];
+    const j = await resp.json();
+    return j.map((p,idx)=>( { id: 'n_'+idx, name: p.display_name.split(',')[0] || query, tags:{}, lat: Number(p.lat), lon: Number(p.lon), addr: p.display_name } ));
+  }catch(err){ console.warn('nominatim err', err); return []; }
+}
+
+// fuzzy filter
+function filterStoresByQuery(stores, query){
+  const q = query.toLowerCase().trim();
+  if(!q) return stores;
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const out = stores.filter(s=>{
+    const hay = ((s.name||'') + ' ' + (s.tags && (s.tags.shop || '') ) + ' ' + (s.addr||'') + ' ' + JSON.stringify(s.tags)).toLowerCase();
+    return tokens.every(t=> hay.includes(t) || fuzzyMatch(hay, t));
+  });
+  if(out.length === 0){
+    // return nearest subset
+    if(state.pos){
+      stores.forEach(s=> s.distanceMeters = haversineMeters(state.pos, {lat:s.lat, lon:s.lon}));
+      stores.sort((a,b)=> (a.distanceMeters||0) - (b.distanceMeters||0));
+      return stores.slice(0,15);
+    }
+    return stores.slice(0,15);
+  }
+  return out;
+}
+function fuzzyMatch(hay, needle){
+  if(hay.includes(needle)) return true;
+  // simple 1-edit removal
+  for(let i=0;i<needle.length;i++){
+    const test = needle.slice(0,i) + needle.slice(i+1);
+    if(hay.includes(test)) return true;
+  }
+  return false;
+}
+
+// ---------------------- Price extraction ----------------------
+
+// Attempt to parse JSON-LD or price patterns from a given URL
+async function fetchAndParse(url){
+  try{
+    const resp = await fetch(url, { mode: 'cors' });
+    if(!resp.ok) throw new Error('fetch failed '+resp.status);
+    const text = await resp.text();
+    // JSON-LD script blocks
+    const matches = [...text.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/ig)];
+    const items = [];
+    for(const m of matches){
+      try{
+        const j = JSON.parse(m[1]);
+        const arr = Array.isArray(j) ? j : [j];
+        for(const obj of arr){
+          if(obj && (obj['@type']=='Product' || (obj['@type'] && /Product/i.test(obj['@type'])))){
+            const name = obj.name || obj.headline || null;
+            const offers = obj.offers;
+            let priceDisplay = null;
+            if(offers){
+              if(Array.isArray(offers)) priceDisplay = offers[0].price || offers[0].priceCurrency && (offers[0].priceCurrency+' '+offers[0].price);
+              else priceDisplay = offers.price || (offers.priceCurrency && (offers.priceCurrency+' '+offers.price));
+            }
+            items.push({ name, price: priceDisplay, raw: obj });
+          }
+        }
+      }catch(err){}
+    }
+    if(items.length) return { ok:true, items };
+    // fallback price regex
+    const rx = /(\$|USD\s?)(\d{1,4}(?:[.,]\d{2})?)/;
+    const m = text.match(rx);
+    if(m) return { ok:true, price: m[0], title: null };
+    return { ok:false };
+  }catch(err){
+    return { ok:false, error: err.message };
+  }
+}
+
+// Try to extract price for a specific store by checking its website or shopping results
+async function attemptPriceParse(query, store){
+  // 1) If store tags include website, try store search endpoint
+  if(store.tags && store.tags.website){
+    try{
+      const site = store.tags.website.replace(/\/$/,'');
+      const url = `${site}/search?q=${encodeURIComponent(query)}`;
+      const parsed = await fetchAndParse(url);
+      if(parsed && parsed.ok){
+        const p = parsed.items && parsed.items[0] ? parsed.items[0] : parsed;
+        return { ok:true, price: p.price || p.priceDisplay, priceDisplay: p.price || p.priceDisplay, name: p.name, source: url };
+      }
+    }catch(e){}
+  }
+  // 2) Try Google Shopping snippet for store + query
+  try{
+    const g = `https://www.google.com/search?q=${encodeURIComponent(query + ' ' + (store.name || ''))}&tbm=shop`;
+    const p1 = await fetchAndParse(g);
+    if(p1 && p1.ok){
+      const it = (p1.items && p1.items[0]) || p1;
+      return { ok:true, price: it.price || it.priceDisplay || p1.price, priceDisplay: it.price || it.priceDisplay || p1.price, name: it.name || p1.title, source: g };
+    }
+  }catch(e){}
+  // 3) Try Bing Shopping
+  try{
+    const b = `https://www.bing.com/shop?q=${encodeURIComponent(query + ' ' + (store.name || ''))}`;
+    const p2 = await fetchAndParse(b);
+    if(p2 && p2.ok) return { ok:true, price: p2.price || null, priceDisplay: p2.price || null, name: p2.title || null, source: b };
+  }catch(e){}
+  return { ok:false };
+}
+
+// shoppingSnippets (not used to attach stores in this version)
+// kept in codebase for future expansion
+async function shoppingSnippets(query){
+  const results = [];
+  const qenc = encodeURIComponent(query);
+  const urls = [
+    `https://www.google.com/search?q=${qenc}&tbm=shop`,
+    `https://www.bing.com/shop?q=${qenc}`
+  ];
+  for(const u of urls){
+    try{
+      const parsed = await fetchAndParse(u);
+      if(parsed && parsed.ok && parsed.items && parsed.items.length){
+        parsed.items.forEach(it=>{
+          results.push({ title: it.name || parsed.title || query, price: it.priceDisplay || it.price || null, source: u, query });
+        });
+      } else if(parsed && parsed.ok && parsed.price){
+        results.push({ title: parsed.title || query, price: parsed.price, source:u, query });
+      }
+    }catch(err){}
+  }
+  return results;
+}
+
+// ---------------------- Render / Fallback ----------------------
+
+function renderAllResults(){
+  clearResultsUI();
+  state.stores.forEach(s=>{
+    s.distanceMeters = s.distanceMeters || (state.pos ? haversineMeters(state.pos, {lat:s.lat, lon:s.lon}) : 0);
+    s.distanceDisplay = s.distanceDisplay || (s.distanceMeters ? formatDistance(s.distanceMeters) : '');
+    addResultCard(s);
   });
 }
 
-// --- event bindings ---
-el('go').onclick=doSearch;
-el('search').addEventListener("keydown",e=>{if(e.key==="Enter")doSearch();});
+function renderFallbackLinks(query){
+  clearResultsUI();
+  const qenc = encodeURIComponent(query + ' near me');
+  const links = [
+    {label:'Google Maps', url:`https://www.google.com/maps/search/${qenc}`},
+    {label:'Bing Maps', url:`https://www.bing.com/maps?q=${qenc}`},
+    {label:'DuckDuckGo search', url:`https://duckduckgo.com/?q=${qenc}`}
+  ];
+  links.forEach(l=>{
+    const div = document.createElement('div'); div.className='storeCard';
+    div.innerHTML = `<div><strong>${l.label}</strong><div class="small">Open external search for results</div></div>
+      <div style="margin-left:auto"><a class="linkBtn" href="${l.url}" target="_blank" rel="noopener">Open</a></div>`;
+    resultsEl.appendChild(div);
+  });
+  setStatus('No priced results available. Use external search links.');
+}
 
-el('settingsBtn').onclick=()=>{el('settingsMenu').style.display="block";};
-el('closeSettings').onclick=()=>{el('settingsMenu').style.display="none";};
-el('themeToggle').onchange=e=>{
-  document.body.classList.toggle("dark",e.target.checked);
-};
+// ---------------------- Location ----------------------
+function getLocationOnce(){
+  return new Promise((res,rej)=>{
+    if(state.pos) return res(state.pos);
+    if(!navigator.geolocation) return rej(new Error('no geo'));
+    navigator.geolocation.getCurrentPosition(p=>{
+      state.pos = {lat:p.coords.latitude, lon:p.coords.longitude};
+      const um = L.circleMarker([state.pos.lat, state.pos.lon], {radius:7, color:'#22d3ee', fill:true, fillColor:'#22d3ee'}).addTo(state.map);
+      um.bindPopup('You are here');
+      state.map.setView([state.pos.lat, state.pos.lon], 13);
+      res(state.pos);
+    }, err=>rej(err), {enableHighAccuracy:true, timeout:10000});
+  });
+}
+
+// ---------------------- Initial UI ----------------------
+setStatus('Ready. Allow location and search for items.');
+function $(sel){ return document.querySelector(sel); }
+
 </script>
 </body>
 </html>
