@@ -51,4 +51,9 @@ ChatGPT prompts:
 - go ahead and make those updates.
 - Let's update it to use fuzzy matching instead of its current approach to wider searches. Also, if you could review the existing code to structure and clean it up, that would be great.
 - Do what you think would provide the best results.
+- Ok, I have noticed that the search always fails to yield usable results. I think our current approach to the search engine will not work. Can you think of a different way to search? What if we ran a google search instead and scraped the results to generate the output?
+- Since this is meant to be relatively simple, I want to avoid any options that involve charges. Just a reminder, the goal is to find what stores in the nearby area have a certain product and what they are charging for it. The results need to be relatively accurate for it to be useful.
+- Do whatever you need to do to make it work properly. Just a reminder, this is meant to be a single page application.
+- First, I don't like the new UI you made, please change it back to the previous one. Second, it cannot guess prices or results. If there is no price available, the listing should not be included.
+- Now it is failing to find any results. Is there a possible solution that doesn't rely on guessing?
 - 
